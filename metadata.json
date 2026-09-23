@@ -1,0 +1,6 @@
+{
+  "name": "ClassSync - InfoKelas",
+  "description": "Aplikasi pengelolaan jadwal pelajaran, ruang kelas, tugas, dan agenda harian sekolah untuk siswa dan guru.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
