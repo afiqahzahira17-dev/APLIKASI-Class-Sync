@@ -21,8 +21,16 @@ interface ClassDetailViewProps {
 }
 
 export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassModal }) => {
-  const { currentUser, activeClass, classes, setActiveClass, deleteClass, clearAllClasses, allDemoUsers } =
-    useApp();
+  const {
+    currentUser,
+    activeClass,
+    classes,
+    setActiveClass,
+    deleteClass,
+    clearAllClasses,
+    assignments,
+    submissions,
+  } = useApp();
   const [copiedCode, setCopiedCode] = useState(false);
   const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
 
@@ -39,8 +47,38 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     }
   };
 
-  // Filter students belonging to this class
-  const classStudents = allDemoUsers.filter((u) => u.role === 'student');
+  // Real students belonging to this class (currentUser if student, and any student with submissions)
+  const classStudents = React.useMemo(() => {
+    if (!activeClass) return [];
+    const studentMap = new Map<string, { id: string; name: string; avatarUrl: string; identifierNumber?: string }>();
+
+    if (currentUser.role === 'student') {
+      studentMap.set(currentUser.id, {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatarUrl: currentUser.avatarUrl,
+        identifierNumber: currentUser.identifierNumber,
+      });
+    }
+
+    const classAssignmentIds = new Set(
+      assignments.filter((a) => a.classId === activeClass.id).map((a) => a.id)
+    );
+    submissions
+      .filter((s) => classAssignmentIds.has(s.assignmentId))
+      .forEach((sub) => {
+        if (!studentMap.has(sub.studentId)) {
+          studentMap.set(sub.studentId, {
+            id: sub.studentId,
+            name: sub.studentName,
+            avatarUrl: sub.studentAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            identifierNumber: 'Siswa Kelas',
+          });
+        }
+      });
+
+    return Array.from(studentMap.values());
+  }, [activeClass, currentUser, assignments, submissions]);
 
   return (
     <div className="space-y-4 pb-24">
@@ -303,36 +341,47 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
               </span>
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {classStudents.map((student) => (
-                <div key={student.id} className="py-2 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={student.avatarUrl}
-                      alt={student.name}
-                      className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-                    />
-                    <div>
-                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        {student.name}
-                        {student.id === currentUser.id && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                            Anda
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        {student.identifierNumber}
-                      </p>
+            {classStudents.length === 0 ? (
+              <div className="py-6 text-center space-y-1">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Belum ada siswa yang terdaftar di kelas ini
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Bagikan kode kelas <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{activeClass.code}</span> agar siswa dapat bergabung.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {classStudents.map((student) => (
+                  <div key={student.id} className="py-2 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={student.avatarUrl}
+                        alt={student.name}
+                        className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                      />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          {student.name}
+                          {student.id === currentUser.id && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                              Anda
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          {student.identifierNumber}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                    Siswa Aktif
-                  </span>
-                </div>
-              ))}
-            </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      Siswa Aktif
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

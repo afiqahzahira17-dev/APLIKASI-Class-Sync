@@ -19,6 +19,20 @@ import {
   INITIAL_ANNOUNCEMENTS,
   INITIAL_NOTIFICATIONS,
 } from '../data/mockData';
+import {
+  supabase,
+  safeSupabaseCall,
+  mapClassFromDb,
+  mapClassToDb,
+  mapScheduleFromDb,
+  mapScheduleToDb,
+  mapAssignmentFromDb,
+  mapAssignmentToDb,
+  mapSubmissionFromDb,
+  mapSubmissionToDb,
+  mapAnnouncementFromDb,
+  mapAnnouncementToDb,
+} from '../lib/supabase';
 
 interface AppContextType {
   // Auth & User
@@ -93,21 +107,34 @@ interface AppContextType {
   setIsMobileDeviceFrame: (val: boolean | ((prev: boolean) => boolean)) => void;
   activeTab: 'jadwal' | 'tugas' | 'agenda' | 'kelas';
   setActiveTab: (tab: 'jadwal' | 'tugas' | 'agenda' | 'kelas') => void;
+
+  // Supabase Database Integration
+  isSupabaseConnected: boolean;
+  isSupabaseSyncing: boolean;
+  syncWithSupabase: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const DATA_VERSION = 'v4_empty_classes_custom';
+  const DATA_VERSION = 'v5_clean_no_sample_data';
 
   // Load or initialize state from localStorage
   const [currentUser, setCurrentUserState] = useState<User>(() => {
     const version = localStorage.getItem('classsync_version');
-    if (version !== DATA_VERSION) {
-      return INITIAL_TEACHER;
-    }
     const saved = localStorage.getItem('classsync_user');
-    return saved ? JSON.parse(saved) : INITIAL_TEACHER;
+    if (version !== DATA_VERSION || !saved) {
+      return INITIAL_STUDENT;
+    }
+    try {
+      const parsed: User = JSON.parse(saved);
+      if (parsed.name.includes('Ahmad Fauzi') || parsed.name.includes('Fathir')) {
+        return INITIAL_STUDENT;
+      }
+      return parsed;
+    } catch {
+      return INITIAL_STUDENT;
+    }
   });
 
   const [classes, setClasses] = useState<ClassRoom[]>(() => {
@@ -115,14 +142,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (version !== DATA_VERSION) {
       const defaultActiveId = INITIAL_CLASSES.length > 0 ? INITIAL_CLASSES[0].id : '';
       localStorage.setItem('classsync_version', DATA_VERSION);
-      localStorage.setItem('classsync_user', JSON.stringify(INITIAL_TEACHER));
+      localStorage.setItem('classsync_user', JSON.stringify(INITIAL_STUDENT));
       localStorage.setItem('classsync_active_class_id', defaultActiveId);
-      localStorage.setItem('classsync_classes', JSON.stringify(INITIAL_CLASSES));
-      localStorage.setItem('classsync_schedules', JSON.stringify(INITIAL_SCHEDULES));
-      localStorage.setItem('classsync_assignments', JSON.stringify(INITIAL_ASSIGNMENTS));
-      localStorage.setItem('classsync_submissions', JSON.stringify(INITIAL_SUBMISSIONS));
-      localStorage.setItem('classsync_announcements', JSON.stringify(INITIAL_ANNOUNCEMENTS));
-      localStorage.setItem('classsync_notifications', JSON.stringify(INITIAL_NOTIFICATIONS));
       return INITIAL_CLASSES;
     }
     const saved = localStorage.getItem('classsync_classes');
@@ -144,7 +165,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return INITIAL_SCHEDULES;
     }
     const saved = localStorage.getItem('classsync_schedules');
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULES;
+    if (!saved) return INITIAL_SCHEDULES;
+    try {
+      const parsed: ScheduleItem[] = JSON.parse(saved);
+      return parsed.filter((s) => !s.subjectName.toLowerCase().includes('upacara'));
+    } catch {
+      return INITIAL_SCHEDULES;
+    }
   });
 
   const [assignments, setAssignments] = useState<Assignment[]>(() => {
@@ -171,7 +198,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return INITIAL_ANNOUNCEMENTS;
     }
     const saved = localStorage.getItem('classsync_announcements');
-    return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
+    if (!saved) return INITIAL_ANNOUNCEMENTS;
+    try {
+      const parsed: Announcement[] = JSON.parse(saved);
+      return parsed.filter((a) => !a.title.toLowerCase().includes('upacara'));
+    } catch {
+      return INITIAL_ANNOUNCEMENTS;
+    }
   });
 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
@@ -192,6 +225,134 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isMobileDeviceFrame, setIsMobileDeviceFrame] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'jadwal' | 'tugas' | 'agenda' | 'kelas'>('jadwal');
+
+  // Supabase State
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
+  const [isSupabaseSyncing, setIsSupabaseSyncing] = useState<boolean>(false);
+
+  // Sync with Supabase (push and pull)
+  const syncWithSupabase = async () => {
+    setIsSupabaseSyncing(true);
+    try {
+      // 1. Classes
+      const { data: dbClasses, error: classErr } = await supabase.from('classes').select('*');
+      if (!classErr && dbClasses) {
+        setIsSupabaseConnected(true);
+        if (dbClasses.length > 0) {
+          const mapped = dbClasses.map(mapClassFromDb);
+          setClasses(mapped);
+          setActiveClassId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0].id));
+        } else if (classes.length > 0) {
+          for (const c of classes) {
+            await supabase.from('classes').upsert(mapClassToDb(c));
+          }
+        }
+      }
+
+      // 2. Schedules
+      const { data: dbSchedules, error: schErr } = await supabase.from('schedules').select('*');
+      if (!schErr && dbSchedules) {
+        if (dbSchedules.length > 0) {
+          setSchedules(
+            dbSchedules
+              .map(mapScheduleFromDb)
+              .filter((s) => !s.subjectName.toLowerCase().includes('upacara'))
+          );
+        } else if (schedules.length > 0) {
+          for (const s of schedules) {
+            await supabase.from('schedules').upsert(mapScheduleToDb(s));
+          }
+        }
+      }
+
+      // 3. Assignments
+      const { data: dbAssignments, error: assErr } = await supabase.from('assignments').select('*');
+      if (!assErr && dbAssignments) {
+        if (dbAssignments.length > 0) {
+          setAssignments(dbAssignments.map(mapAssignmentFromDb));
+        } else if (assignments.length > 0) {
+          for (const a of assignments) {
+            await supabase.from('assignments').upsert(mapAssignmentToDb(a));
+          }
+        }
+      }
+
+      // 4. Submissions
+      const { data: dbSubmissions, error: subErr } = await supabase.from('submissions').select('*');
+      if (!subErr && dbSubmissions) {
+        if (dbSubmissions.length > 0) {
+          setSubmissions(dbSubmissions.map(mapSubmissionFromDb));
+        } else if (submissions.length > 0) {
+          for (const sub of submissions) {
+            await supabase.from('submissions').upsert(mapSubmissionToDb(sub));
+          }
+        }
+      }
+
+      // 5. Announcements
+      const { data: dbAnnouncements, error: annErr } = await supabase.from('announcements').select('*');
+      if (!annErr && dbAnnouncements) {
+        if (dbAnnouncements.length > 0) {
+          setAnnouncements(
+            dbAnnouncements
+              .map(mapAnnouncementFromDb)
+              .filter((a) => !a.title.toLowerCase().includes('upacara'))
+          );
+        } else if (announcements.length > 0) {
+          for (const ann of announcements) {
+            await supabase.from('announcements').upsert(mapAnnouncementToDb(ann));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Supabase sync skipped (waiting for table migration):', err);
+    } finally {
+      setIsSupabaseSyncing(false);
+    }
+  };
+
+  // Initial Supabase connection check, cleanup of upacara items, & realtime sync
+  useEffect(() => {
+    // Purge any upacara items from state and database
+    setAnnouncements((prev) => prev.filter((a) => !a.title.toLowerCase().includes('upacara')));
+    setSchedules((prev) => prev.filter((s) => !s.subjectName.toLowerCase().includes('upacara')));
+    safeSupabaseCall(supabase.from('announcements').delete().ilike('title', '%upacara%'));
+    safeSupabaseCall(supabase.from('schedules').delete().ilike('subject_name', '%upacara%'));
+
+    syncWithSupabase();
+
+    const channel = supabase
+      .channel('supabase-live-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, async () => {
+        const { data } = await supabase.from('classes').select('*');
+        if (data) setClasses(data.map(mapClassFromDb));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, async () => {
+        const { data } = await supabase.from('schedules').select('*');
+        if (data) setSchedules(data.map(mapScheduleFromDb).filter((s) => !s.subjectName.toLowerCase().includes('upacara')));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, async () => {
+        const { data } = await supabase.from('assignments').select('*');
+        if (data) setAssignments(data.map(mapAssignmentFromDb));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, async () => {
+        const { data } = await supabase.from('submissions').select('*');
+        if (data) setSubmissions(data.map(mapSubmissionFromDb));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, async () => {
+        const { data } = await supabase.from('announcements').select('*');
+        if (data) setAnnouncements(data.map(mapAnnouncementFromDb).filter((a) => !a.title.toLowerCase().includes('upacara')));
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsSupabaseConnected(true);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Persistence effects
   useEffect(() => {
@@ -252,9 +413,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSchedules((prev) => prev.filter((s) => s.classId !== classId));
     setAssignments((prev) => prev.filter((a) => a.classId !== classId));
     setAnnouncements((prev) => prev.filter((a) => a.classId !== classId));
+
+    safeSupabaseCall(supabase.from('classes').delete().eq('id', classId));
   };
 
   const clearAllClasses = () => {
+    classes.forEach((c) => {
+      safeSupabaseCall(supabase.from('classes').delete().eq('id', c.id));
+    });
     setClasses([]);
     setActiveClassId('');
     setSchedules([]);
@@ -292,7 +458,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       identifierNumber: role === 'teacher' ? `NIP. ${idNum}` : `NISN. ${idNum}`,
       className: role === 'student' ? activeClass?.name : undefined,
-      schoolName: 'MTs Negeri 1 Model Nusantara',
+      schoolName: currentUser.schoolName || 'MTs',
     };
     setCurrentUserState(newUser);
   };
@@ -310,12 +476,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       teacherName: currentUser.name,
       academicYear: '2026/2027 Ganjil',
       studentCount: 1,
-      description: description || 'Kelas baru di ClassSync',
+      description: description || 'Kelas baru di ClassyWork',
       bannerColor: 'indigo',
     };
 
     setClasses((prev) => [newClass, ...prev]);
     setActiveClassId(newClass.id);
+
+    // Sync to Supabase
+    safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(newClass)));
 
     // Add notification
     const notif: AppNotification = {
@@ -370,14 +539,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `sch-${Date.now()}`,
     };
     setSchedules((prev) => [...prev, newItem]);
+    safeSupabaseCall(supabase.from('schedules').upsert(mapScheduleToDb(newItem)));
   };
 
   const updateScheduleItem = (id: string, updated: Partial<ScheduleItem>) => {
-    setSchedules((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
+    setSchedules((prev) =>
+      prev.map((s) => {
+        if (s.id === id) {
+          const merged = { ...s, ...updated };
+          safeSupabaseCall(supabase.from('schedules').upsert(mapScheduleToDb(merged)));
+          return merged;
+        }
+        return s;
+      })
+    );
   };
 
   const deleteScheduleItem = (id: string) => {
     setSchedules((prev) => prev.filter((s) => s.id !== id));
+    safeSupabaseCall(supabase.from('schedules').delete().eq('id', id));
   };
 
   const addAssignment = (
@@ -391,6 +571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setAssignments((prev) => [newAssignment, ...prev]);
+    safeSupabaseCall(supabase.from('assignments').upsert(mapAssignmentToDb(newAssignment)));
 
     // Broadcast push notification to students
     const broadcastNotif: AppNotification = {
@@ -409,6 +590,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteAssignment = (id: string) => {
     setAssignments((prev) => prev.filter((a) => a.id !== id));
     setSubmissions((prev) => prev.filter((s) => s.assignmentId !== id));
+
+    safeSupabaseCall(supabase.from('assignments').delete().eq('id', id));
   };
 
   const submitAssignment = (
@@ -452,6 +635,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSubmissions((prev) => [submissionData, ...prev]);
     }
 
+    // Sync to Supabase
+    safeSupabaseCall(supabase.from('submissions').upsert(mapSubmissionToDb(submissionData)));
+
     // Add confirmation notification
     const notif: AppNotification = {
       id: `notif-${Date.now()}`,
@@ -488,6 +674,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         return s;
       })
+    );
+
+    // Sync to Supabase
+    safeSupabaseCall(
+      supabase
+        .from('submissions')
+        .update({ grade, feedback, graded_at: now })
+        .eq('id', submissionId)
     );
 
     // Send notification to student
@@ -533,6 +727,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setAnnouncements((prev) => [newAnn, ...prev]);
 
+    // Sync to Supabase
+    safeSupabaseCall(supabase.from('announcements').upsert(mapAnnouncementToDb(newAnn)));
+
     // Broadcast push notification
     const notif: AppNotification = {
       id: `notif-${Date.now()}`,
@@ -549,6 +746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteAnnouncement = (id: string) => {
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    safeSupabaseCall(supabase.from('announcements').delete().eq('id', id));
   };
 
   const toggleLikeAnnouncement = (id: string) => {
@@ -652,6 +850,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsMobileDeviceFrame,
         activeTab,
         setActiveTab,
+        isSupabaseConnected,
+        isSupabaseSyncing,
+        syncWithSupabase,
       }}
     >
       {children}

@@ -352,7 +352,7 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                   required
                   placeholder={
                     isNonKbmAgenda
-                      ? 'Contoh: Upacara Bendera HUT RI / Kerja Bakti Kelas'
+                      ? 'Contoh: Peringatan Hari Besar / Kerja Bakti Kelas'
                       : 'Contoh: Hari ini Kuis mendadak di Ruang Lab'
                   }
                   value={title}
@@ -410,7 +410,7 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                     </label>
                     <input
                       type="text"
-                      placeholder="Contoh: Lapangan Upacara Utama, Ruang CBT Lab 1"
+                      placeholder="Contoh: Aula Utama Madrasah, Ruang CBT Lab 1"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"

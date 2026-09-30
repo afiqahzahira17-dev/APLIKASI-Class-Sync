@@ -83,7 +83,7 @@ export interface Announcement {
   title: string;
   content: string;
   type: 'urgent' | 'info' | 'agenda';
-  isNonKbmAgenda: boolean; // non-KBM agenda like Upacara, UTS, etc.
+  isNonKbmAgenda: boolean; // non-KBM agenda like UTS, Kegiatan Peringatan, dll.
   eventDate?: string;
   eventTime?: string;
   location?: string;
