@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ScheduleItem } from '../types';
 import { EmptyClassState } from './EmptyClassState';
+import { WeeklyGridView } from './WeeklyGridView';
+import { CalendarImportExportModal } from './CalendarImportExportModal';
 import {
   Clock,
   MapPin,
@@ -17,6 +19,9 @@ import {
   BookOpen,
   CheckCircle2,
   Filter,
+  LayoutGrid,
+  CalendarDays,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface ScheduleViewProps {
@@ -35,8 +40,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     setSimulatedDay,
     simulatedTime,
     setSimulatedTime,
+    privacySettings,
   } = useApp();
 
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly_grid'>('daily');
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number>(simulatedDay);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
@@ -234,7 +242,9 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
           <div className="mt-3 pt-2.5 border-t border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
             <div className="flex items-center gap-1.5 font-medium">
               <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Lokasi: {liveClass.roomLocation}</span>
+              <span>
+                Lokasi: {privacySettings.hideSpecificLocations ? 'Ruang Kelas' : liveClass.roomLocation}
+              </span>
             </div>
             {liveClass.notes && (
               <p className="text-[11px] text-slate-500 italic truncate max-w-[200px] sm:max-w-xs">
@@ -245,77 +255,121 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
         </div>
       )}
 
-      {/* Days of Week Tab Slider */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-              Jadwal KBM Harian
-            </h3>
-          </div>
-          <span className="text-xs text-slate-500 font-medium">
-            {activeClass.name} • {daySchedules.length} Sesi
-          </span>
+      {/* Top Action & View Mode Switcher */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <button
+            onClick={() => setViewMode('daily')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              viewMode === 'daily'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Mode Harian</span>
+          </button>
+          <button
+            onClick={() => setViewMode('weekly_grid')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              viewMode === 'weekly_grid'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Grid Mingguan (Overlap)</span>
+          </button>
         </div>
 
-        <div className="grid grid-cols-6 gap-1">
-          {days.map((d) => {
-            const isSelected = selectedDay === d.id;
-            const isToday = simulatedDay === d.id;
-            return (
-              <button
-                key={d.id}
-                id={`day-tab-${d.id}`}
-                onClick={() => setSelectedDay(d.id)}
-                className={`py-2 px-1 rounded-xl text-center transition-all relative ${
-                  isSelected
-                    ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20 scale-[1.02]'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium'
-                }`}
-              >
-                <span className="block text-[11px] sm:text-xs">{d.short}</span>
-                <span className="block text-[10px] opacity-80 sm:hidden">
-                  {d.label.slice(0, 3)}
-                </span>
-                {isToday && (
-                  <span
-                    className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
-                      isSelected ? 'bg-white' : 'bg-emerald-500'
-                    }`}
-                    title="Hari Ini"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Teacher Action bar */}
-      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-            {days.find((d) => d.id === selectedDay)?.label}
-          </span>
-          {selectedDay === simulatedDay && (
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <Radio className="w-3 h-3 animate-pulse" /> Hari Ini
-            </span>
+          <button
+            onClick={() => setShowCalendarModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition-colors"
+            title="Impor atau ekspor jadwal dengan Google Calendar / .ics"
+          >
+            <CalendarDays className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Kalender .ics</span>
+          </button>
+
+          {currentUser.role === 'teacher' && (
+            <button
+              id="add-schedule-btn"
+              onClick={handleOpenAdd}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Jadwal</span>
+            </button>
           )}
         </div>
-
-        {currentUser.role === 'teacher' && (
-          <button
-            id="add-schedule-btn"
-            onClick={handleOpenAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Tambah Jadwal</span>
-          </button>
-        )}
       </div>
+
+      {/* RENDER VIEW: Weekly Grid vs Daily List */}
+      {viewMode === 'weekly_grid' ? (
+        <WeeklyGridView onOpenScheduleEdit={handleOpenEdit} />
+      ) : (
+        <>
+          {/* Days of Week Tab Slider */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                  Jadwal KBM Harian
+                </h3>
+              </div>
+              <span className="text-xs text-slate-500 font-medium">
+                {activeClass.name} • {daySchedules.length} Sesi
+              </span>
+            </div>
+
+            <div className="grid grid-cols-6 gap-1">
+              {days.map((d) => {
+                const isSelected = selectedDay === d.id;
+                const isToday = simulatedDay === d.id;
+                return (
+                  <button
+                    key={d.id}
+                    id={`day-tab-${d.id}`}
+                    onClick={() => setSelectedDay(d.id)}
+                    className={`py-2 px-1 rounded-xl text-center transition-all relative ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/20 scale-[1.02]'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium'
+                    }`}
+                  >
+                    <span className="block text-[11px] sm:text-xs">{d.short}</span>
+                    <span className="block text-[10px] opacity-80 sm:hidden">
+                      {d.label.slice(0, 3)}
+                    </span>
+                    {isToday && (
+                      <span
+                        className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
+                          isSelected ? 'bg-white' : 'bg-emerald-500'
+                        }`}
+                        title="Hari Ini"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Teacher Action bar */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                {days.find((d) => d.id === selectedDay)?.label}
+              </span>
+              {selectedDay === simulatedDay && (
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Radio className="w-3 h-3 animate-pulse" /> Hari Ini
+                </span>
+              )}
+            </div>
+          </div>
 
       {/* Schedule Items List */}
       {daySchedules.length === 0 ? (
@@ -431,7 +485,9 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
                   <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
                     <div className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/50">
                       <MapPin className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                      <span>{item.roomLocation}</span>
+                      <span>
+                        {privacySettings.hideSpecificLocations ? 'Ruang Kelas' : item.roomLocation}
+                      </span>
                     </div>
 
                     {item.notes && (
@@ -446,6 +502,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
           })}
         </div>
       )}
+    </>
+  )}
 
       {/* Add / Edit Schedule Modal (Guru) */}
       {showAddModal && (
@@ -593,6 +651,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
           </div>
         </div>
       )}
+
+      {/* Calendar Import / Export Modal */}
+      <CalendarImportExportModal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+      />
     </div>
   );
 };

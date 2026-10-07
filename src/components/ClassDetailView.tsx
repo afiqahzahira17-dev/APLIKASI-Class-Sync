@@ -14,6 +14,8 @@ import {
   ChevronRight,
   ArrowRight,
   Trash2,
+  Trophy,
+  Sparkles,
 } from 'lucide-react';
 
 interface ClassDetailViewProps {
@@ -30,6 +32,9 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     clearAllClasses,
     assignments,
     submissions,
+    userXp,
+    userLevel,
+    userBadges,
   } = useApp();
   const [copiedCode, setCopiedCode] = useState(false);
   const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
@@ -111,6 +116,17 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
               <span>•</span>
               <span>{currentUser.schoolName}</span>
             </p>
+
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
+                <Trophy className="w-3 h-3 text-amber-500" />
+                Level {userLevel.level}: {userLevel.title} ({userXp} XP)
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">
+                <Sparkles className="w-3 h-3 text-indigo-500" />
+                {userBadges.filter((b) => b.isUnlocked).length}/{userBadges.length} Lencana Terbuka
+              </span>
+            </div>
           </div>
         </div>
       </div>

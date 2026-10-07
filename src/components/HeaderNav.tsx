@@ -10,8 +10,12 @@ import {
   ShieldCheck,
   Clock,
   Database,
+  Trophy,
+  Shield,
 } from 'lucide-react';
 import { SupabaseModal } from './SupabaseModal';
+import { GamificationModal } from './GamificationModal';
+import { PrivacySettingsModal } from './PrivacySettingsModal';
 
 interface HeaderNavProps {
   onOpenNotifications: () => void;
@@ -40,10 +44,13 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     isSupabaseConnected,
     isSupabaseSyncing,
     syncWithSupabase,
+    userXp,
   } = useApp();
 
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+  const [showGamificationModal, setShowGamificationModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const unreadNotifsCount = notifications.filter((n) => !n.isRead).length;
 
@@ -119,6 +126,25 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
                 }`}
               />
+            </button>
+
+            {/* XP Gamification Badge */}
+            <button
+              onClick={() => setShowGamificationModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 shadow-2xs"
+              title="Lihat Lencana & XP Prestasi"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-500" />
+              <span>{userXp} XP</span>
+            </button>
+
+            {/* Privacy & Security modal trigger */}
+            <button
+              onClick={() => setShowPrivacyModal(true)}
+              className="p-1.5 rounded-xl text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Pengaturan Privasi & Keamanan Data"
+            >
+              <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </button>
 
             {/* Dark mode toggle */}
@@ -316,6 +342,18 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         isOpen={showSupabaseModal}
         onClose={() => setShowSupabaseModal(false)}
         onSyncNow={syncWithSupabase}
+      />
+
+      {/* Gamification & Badges Modal */}
+      <GamificationModal
+        isOpen={showGamificationModal}
+        onClose={() => setShowGamificationModal(false)}
+      />
+
+      {/* Transparent Privacy & Security Settings Modal */}
+      <PrivacySettingsModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
       />
     </>
   );

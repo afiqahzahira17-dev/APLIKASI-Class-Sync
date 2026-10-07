@@ -9,6 +9,27 @@ export interface User {
   identifierNumber: string; // NISN for student, NIP for teacher
   className?: string; // e.g. "X MIPA 1"
   schoolName: string;
+  xp?: number;
+  level?: number;
+}
+
+export interface UserBadge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: 'submission' | 'attendance' | 'study' | 'collaborator';
+  xpReward: number;
+  unlockedAt?: string;
+  progress: number; // 0 to 100
+  isUnlocked: boolean;
+}
+
+export interface PrivacySettings {
+  hideSpecificLocations: boolean; // sembunyikan nama ruangan spesifik dari publik
+  membersOnlySchedule: boolean; // jadwal hanya terlihat oleh anggota kelas
+  showStudyStats: boolean; // tampilkan badge dan level prestasi
+  dataEncryptionEnabled: boolean; // enkripsi penyimpanan lokal
 }
 
 export interface ClassRoom {

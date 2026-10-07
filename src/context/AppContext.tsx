@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   User,
   ClassRoom,
@@ -7,7 +7,10 @@ import {
   Submission,
   Announcement,
   AppNotification,
+  UserBadge,
+  PrivacySettings,
 } from '../types';
+import { computeBadges, calculateLevel } from '../utils/gamification';
 import {
   INITIAL_TEACHER,
   INITIAL_STUDENT,
@@ -55,6 +58,7 @@ interface AppContextType {
   // Schedules
   schedules: ScheduleItem[];
   addScheduleItem: (item: Omit<ScheduleItem, 'id'>) => void;
+  importScheduleItemsBatch: (items: Omit<ScheduleItem, 'id'>[]) => Promise<number>;
   updateScheduleItem: (id: string, item: Partial<ScheduleItem>) => void;
   deleteScheduleItem: (id: string) => void;
 
@@ -112,6 +116,15 @@ interface AppContextType {
   isSupabaseConnected: boolean;
   isSupabaseSyncing: boolean;
   syncWithSupabase: () => Promise<void>;
+
+  // Privacy & Data Security
+  privacySettings: PrivacySettings;
+  updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
+
+  // Gamification & Badges
+  userXp: number;
+  userBadges: UserBadge[];
+  userLevel: { level: number; title: string; nextXp: number; prevXp: number };
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -225,6 +238,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isMobileDeviceFrame, setIsMobileDeviceFrame] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'jadwal' | 'tugas' | 'agenda' | 'kelas'>('jadwal');
+
+  // Privacy Settings state
+  const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(() => {
+    const saved = localStorage.getItem('classsync_privacy');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return {
+      hideSpecificLocations: false,
+      membersOnlySchedule: false,
+      showStudyStats: true,
+      dataEncryptionEnabled: true,
+    };
+  });
+
+  const updatePrivacySettings = (partial: Partial<PrivacySettings>) => {
+    setPrivacySettings((prev) => {
+      const updated = { ...prev, ...partial };
+      localStorage.setItem('classsync_privacy', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Gamification (XP, Levels, and Badges)
+  const { badges: userBadges, totalXp: userXp } = useMemo(() => {
+    return computeBadges(submissions, currentUser.id, classes.length);
+  }, [submissions, currentUser.id, classes.length]);
+
+  const userLevel = useMemo(() => {
+    return calculateLevel(userXp);
+  }, [userXp]);
 
   // Supabase State
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
@@ -542,6 +588,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeSupabaseCall(supabase.from('schedules').upsert(mapScheduleToDb(newItem)));
   };
 
+  const importScheduleItemsBatch = async (items: Omit<ScheduleItem, 'id'>[]): Promise<number> => {
+    const newItems: ScheduleItem[] = items.map((item, idx) => ({
+      ...item,
+      id: `sch-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+    }));
+
+    setSchedules((prev) => [...prev, ...newItems]);
+    for (const item of newItems) {
+      await safeSupabaseCall(supabase.from('schedules').upsert(mapScheduleToDb(item)));
+    }
+    return newItems.length;
+  };
+
   const updateScheduleItem = (id: string, updated: Partial<ScheduleItem>) => {
     setSchedules((prev) =>
       prev.map((s) => {
@@ -822,6 +881,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         joinClassByCode,
         schedules,
         addScheduleItem,
+        importScheduleItemsBatch,
         updateScheduleItem,
         deleteScheduleItem,
         assignments,
@@ -853,6 +913,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSupabaseConnected,
         isSupabaseSyncing,
         syncWithSupabase,
+        privacySettings,
+        updatePrivacySettings,
+        userXp,
+        userBadges,
+        userLevel,
       }}
     >
       {children}
