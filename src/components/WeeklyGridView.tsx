@@ -25,6 +25,8 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     simulatedTime,
     privacySettings,
     currentUser,
+    witaTimeInfo,
+    isRealTimeWita,
   } = useApp();
 
   const days = [
@@ -34,6 +36,7 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     { id: 4, label: 'Kamis', short: 'Kam' },
     { id: 5, label: 'Jumat', short: 'Jum' },
     { id: 6, label: 'Sabtu', short: 'Sab' },
+    { id: 7, label: 'Minggu', short: 'Min' },
   ];
 
   const timeToMinutes = (timeStr: string): number => {
@@ -41,7 +44,10 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     return h * 60 + m;
   };
 
-  const currentMinutes = timeToMinutes(simulatedTime);
+  const effectiveDay = isRealTimeWita ? witaTimeInfo.dayOfWeek : simulatedDay;
+  const effectiveMinutes = isRealTimeWita
+    ? witaTimeInfo.totalMinutes
+    : timeToMinutes(simulatedTime);
 
   // Filter schedules for the current active class
   const classSchedules = useMemo(() => {
@@ -58,6 +64,7 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
       4: [],
       5: [],
       6: [],
+      7: [],
     };
     classSchedules.forEach((s) => {
       if (map[s.dayOfWeek]) {
@@ -152,11 +159,11 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
           </span>
         </div>
 
-        {/* 6-Column Responsive Weekly Matrix */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800/80">
+        {/* 7-Column Responsive Weekly Matrix */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800/80">
           {days.map((day) => {
             const dayItems = schedulesByDay[day.id] || [];
-            const isToday = simulatedDay === day.id;
+            const isToday = effectiveDay === day.id;
 
             return (
               <div
@@ -209,8 +216,8 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
                       const endMin = timeToMinutes(item.endTime);
                       const isLive =
                         isToday &&
-                        currentMinutes >= startMin &&
-                        currentMinutes < endMin;
+                        effectiveMinutes >= startMin &&
+                        effectiveMinutes < endMin;
 
                       return (
                         <div
@@ -224,12 +231,20 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
                             isOverlap
                               ? 'border-2 border-rose-500 bg-rose-50/60 dark:bg-rose-950/40 shadow-xs ring-2 ring-rose-500/20'
                               : isLive
-                              ? 'border-2 border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 shadow-xs'
+                              ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-md ring-2 ring-emerald-500/20'
                               : getColorClasses(item.colorTheme)
                           } ${
                             currentUser.role === 'teacher' ? 'cursor-pointer hover:scale-[1.02]' : ''
                           }`}
                         >
+                          {/* Live Ongoing Indicator */}
+                          {isLive && (
+                            <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white font-extrabold text-[9px] uppercase tracking-wider animate-pulse shadow-xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                              Sedang Berlangsung (WITA)
+                            </span>
+                          )}
+
                           {/* Overlap Badge */}
                           {isOverlap && (
                             <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.2 rounded bg-rose-600 text-white font-bold text-[9px] uppercase tracking-wider">

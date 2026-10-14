@@ -7,7 +7,7 @@ interface MobileDeviceShellProps {
 }
 
 export const MobileDeviceShell: React.FC<MobileDeviceShellProps> = ({ children }) => {
-  const { isMobileDeviceFrame, setIsMobileDeviceFrame, simulatedTime } = useApp();
+  const { isMobileDeviceFrame, setIsMobileDeviceFrame, witaTimeInfo } = useApp();
 
   if (!isMobileDeviceFrame) {
     return (
@@ -39,7 +39,7 @@ export const MobileDeviceShell: React.FC<MobileDeviceShellProps> = ({ children }
       <div className="w-full max-w-[412px] h-[860px] bg-white dark:bg-slate-900 rounded-[44px] shadow-2xl border-[10px] border-slate-900 dark:border-slate-800 overflow-hidden relative flex flex-col ring-1 ring-black/10">
         {/* Status Bar */}
         <div className="h-10 bg-white/95 dark:bg-slate-900/95 px-6 flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200 shrink-0 z-50 select-none">
-          <span className="font-mono text-[11px]">{simulatedTime}</span>
+          <span className="font-mono text-[11px] font-bold">{witaTimeInfo.formattedTime} WITA</span>
 
           {/* Dynamic Island Pill */}
           <div className="w-24 h-4.5 bg-black rounded-full mx-auto" />

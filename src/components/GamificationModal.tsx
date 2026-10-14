@@ -13,6 +13,9 @@ import {
   X,
   Star,
   ChevronRight,
+  Flame,
+  AlertTriangle,
+  TrendingUp,
 } from 'lucide-react';
 
 interface GamificationModalProps {
@@ -24,7 +27,14 @@ export const GamificationModal: React.FC<GamificationModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { userXp, userBadges, userLevel, currentUser } = useApp();
+  const {
+    userXp,
+    userBadges,
+    userLevel,
+    currentUser,
+    xpBreakdown,
+    expiredUnsubmittedAssignments,
+  } = useApp();
 
   if (!isOpen) return null;
 
@@ -114,6 +124,75 @@ export const GamificationModal: React.FC<GamificationModalProps> = ({
               <span>Menuju Level {userLevel.level + 1} ({userLevel.nextXp} XP)</span>
             </div>
           </div>
+        </div>
+
+        {/* Rincian Perolehan & Pengurangan XP (Transparansi Poin) */}
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Rincian Perhitungan XP Siswa</span>
+            </h4>
+            <span className="text-[10px] text-slate-400">Sistem Otomatis</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 space-y-0.5">
+              <span className="text-[10px] text-slate-400 font-medium block">Modal Awal:</span>
+              <span className="font-bold text-slate-700 dark:text-slate-300">+{xpBreakdown.baseXp} XP</span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 space-y-0.5">
+              <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold block flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                Verifikasi Guru:
+              </span>
+              <span className="font-black text-amber-600 dark:text-amber-400">
+                +{xpBreakdown.verifiedBonusXp} XP
+              </span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60 space-y-0.5">
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-300 font-medium block">Lencana Dibuka:</span>
+              <span className="font-bold text-indigo-700 dark:text-indigo-300">+{xpBreakdown.badgesXp} XP</span>
+            </div>
+
+            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/60 space-y-0.5">
+              <span className="text-[10px] text-rose-700 dark:text-rose-300 font-bold block flex items-center gap-1">
+                <Flame className="w-3 h-3 text-rose-500" />
+                Pinalti Kadaluwarsa:
+              </span>
+              <span className="font-black text-rose-600 dark:text-rose-400">
+                -{xpBreakdown.expiredPenaltyXp} XP
+              </span>
+            </div>
+          </div>
+
+          {/* Expired assignments list if any */}
+          {expiredUnsubmittedAssignments.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{expiredUnsubmittedAssignments.length} Tugas Melewati Batas Waktu:</span>
+              </div>
+              <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                {expiredUnsubmittedAssignments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="p-1.5 rounded-lg bg-rose-100/70 dark:bg-rose-950/70 text-[11px] flex items-center justify-between text-rose-900 dark:text-rose-200"
+                  >
+                    <span className="truncate max-w-[200px] font-medium">{a.title}</span>
+                    <span className="font-bold shrink-0 text-rose-600 dark:text-rose-400">
+                      -{a.xpPenaltyOverdue || 30} XP
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                * Kumpulkan tugas sebelum tenggat agar tidak terkena pemotongan XP ini.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Badges Collection List */}

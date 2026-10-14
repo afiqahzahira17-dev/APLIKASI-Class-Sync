@@ -10,6 +10,7 @@ import { ClassDetailView } from './components/ClassDetailView';
 import { NotificationModal } from './components/NotificationModal';
 import { AuthModal } from './components/AuthModal';
 import { ClassModal } from './components/ClassModal';
+import { XpGlowBanner } from './components/XpGlowBanner';
 
 const MainContent: React.FC = () => {
   const { activeTab } = useApp();
@@ -20,6 +21,7 @@ const MainContent: React.FC = () => {
 
   return (
     <>
+      <XpGlowBanner />
       <HeaderNav
         onOpenNotifications={() => setIsNotifOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}

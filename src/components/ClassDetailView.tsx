@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { TeacherPhoneVerificationModal } from './TeacherPhoneVerificationModal';
 import {
   Users,
   Copy,
@@ -16,6 +17,10 @@ import {
   Trash2,
   Trophy,
   Sparkles,
+  MessageCircle,
+  Phone,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react';
 
 interface ClassDetailViewProps {
@@ -35,9 +40,14 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     userXp,
     userLevel,
     userBadges,
+    activeLiveClass,
+    setActiveTab,
   } = useApp();
   const [copiedCode, setCopiedCode] = useState(false);
   const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+
+  const isTeacher = currentUser.role === 'teacher';
 
   const handleCopy = () => {
     if (!activeClass) return;
@@ -47,6 +57,10 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
   };
 
   const handleDeleteClass = (clsId: string, clsName: string) => {
+    if (!isTeacher) {
+      alert('Hanya akun guru yang dapat menghapus kelas.');
+      return;
+    }
     if (window.confirm(`Hapus kelas "${clsName}"? Semua jadwal dan tugas di kelas ini akan ikut terhapus.`)) {
       deleteClass(clsId);
     }
@@ -146,7 +160,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            {classes.length > 0 && (
+            {isTeacher && classes.length > 0 && (
               <button
                 onClick={() => {
                   if (window.confirm('Hapus semua kelas yang terdaftar? Tindakan ini tidak dapat dibatalkan.')) {
@@ -160,13 +174,23 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 <span className="hidden sm:inline">Hapus Semua</span>
               </button>
             )}
-            <button
-              onClick={onOpenClassModal}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-colors shrink-0 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Buat Kelas Baru</span>
-            </button>
+            {isTeacher ? (
+              <button
+                onClick={onOpenClassModal}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-colors shrink-0 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Buat Kelas Baru</span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenClassModal}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-colors shrink-0 cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>+ Gabung via Kode</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -174,26 +198,40 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
           <div className="text-center py-10 px-4 border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
             <School className="w-10 h-10 text-indigo-500 mx-auto mb-2.5 opacity-80" />
             <h5 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-              Belum Ada Kelas yang Terdaftar
+              {isTeacher ? 'Belum Ada Kelas yang Terdaftar' : 'Belum Bergabung ke Kelas'}
             </h5>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
-              Semua kelas dummy telah dihapus sesuai permintaan. Anda sekarang dapat membuat kelas sendiri dengan nama, tingkat (Kelas 7, 8, atau 9 MTs), dan deskripsi sesuai keinginan Anda.
+              {isTeacher
+                ? 'Mulai dengan membuat kelas pertama Anda untuk mengelola jadwal pelajaran, materi, dan pengumpulan tugas.'
+                : 'Anda belum bergabung ke kelas manapun. Masukkan kode kelas yang diberikan oleh guru Anda untuk mulai mengakses jadwal dan tugas.'}
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={onOpenClassModal}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Buat Kelas Pertama Saya</span>
-              </button>
-              <button
-                onClick={onOpenClassModal}
-                className="px-3.5 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <KeyRound className="w-3.5 h-3.5 text-slate-400" />
-                <span>Gabung via Kode</span>
-              </button>
+              {isTeacher ? (
+                <>
+                  <button
+                    onClick={onOpenClassModal}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Buat Kelas Pertama Saya</span>
+                  </button>
+                  <button
+                    onClick={onOpenClassModal}
+                    className="px-3.5 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Gabung via Kode</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={onOpenClassModal}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>Masukkan Kode Kelas</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -225,13 +263,15 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                             {cls.code}
                           </span>
                         )}
-                        <button
-                          onClick={() => handleDeleteClass(cls.id, cls.name)}
-                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                          title={`Hapus kelas ${cls.name}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {isTeacher && (
+                          <button
+                            onClick={() => handleDeleteClass(cls.id, cls.name)}
+                            className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                            title={`Hapus kelas ${cls.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -294,6 +334,29 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
               </div>
             </div>
 
+            {/* Status KBM Sedang Berlangsung Sekarang (WITA) */}
+            {activeLiveClass && activeLiveClass.classId === activeClass.id && (
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/15 to-teal-500/15 border-2 border-emerald-500/80 flex items-center justify-between gap-3 flex-wrap shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping" />
+                  <div>
+                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 block">
+                      🔴 KBM Sedang Berlangsung Sekarang (WITA)
+                    </span>
+                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                      {activeLiveClass.subjectName} ({activeLiveClass.startTime} - {activeLiveClass.endTime} WITA) • {activeLiveClass.roomLocation}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('jadwal')}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs ml-auto"
+                >
+                  Buka Jadwal Live →
+                </button>
+              </div>
+            )}
+
             {/* Shareable Class Code Box */}
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
               <div>
@@ -339,6 +402,65 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+
+            {/* Teacher WhatsApp Official Contact Card */}
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      WhatsApp Wali Kelas ({activeClass.teacherName})
+                    </span>
+                    {activeClass.isTeacherVerified || currentUser.isPhoneVerified ? (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        Terverifikasi Resmi
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        Menunggu Verifikasi PIN
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    {activeClass.isTeacherVerified && activeClass.teacherPhone
+                      ? `Nomor resmi: +${activeClass.teacherPhone} • Konsultasi belajar siswa`
+                      : 'Verifikasi nomor kontak pendidik untuk mencegah penyalahgunaan'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isTeacher ? (
+                  <button
+                    onClick={() => setShowPhoneModal(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Kelola & Verifikasi No. WA</span>
+                  </button>
+                ) : activeClass.isTeacherVerified && activeClass.teacherPhone ? (
+                  <a
+                    href={`https://wa.me/${activeClass.teacherPhone}?text=${encodeURIComponent(
+                      `Assalamu'alaikum Bapak/Ibu Guru ${activeClass.teacherName}, saya siswa di kelas ${activeClass.name}...`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center gap-1.5 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Hubungi Guru (WA)</span>
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-slate-400 italic">
+                    (Belum Terverifikasi)
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -401,6 +523,12 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
           </div>
         </>
       )}
+
+      {/* Teacher Phone Verification Modal */}
+      <TeacherPhoneVerificationModal
+        isOpen={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+      />
     </div>
   );
 };

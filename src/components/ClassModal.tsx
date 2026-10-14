@@ -10,9 +10,18 @@ interface ClassModalProps {
 export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
   const { currentUser, joinClassByCode, createClass } = useApp();
 
+  const isTeacher = currentUser.role === 'teacher';
+
   const [mode, setMode] = useState<'join' | 'create'>(
-    currentUser.role === 'teacher' ? 'create' : 'join'
+    isTeacher ? 'create' : 'join'
   );
+
+  // Sync mode if role changes
+  React.useEffect(() => {
+    if (!isTeacher) {
+      setMode('join');
+    }
+  }, [isTeacher]);
 
   // Join form
   const [inputCode, setInputCode] = useState('');
@@ -45,6 +54,10 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isTeacher) {
+      alert('Siswa tidak memiliki izin membuat kelas. Silakan bergabung menggunakan kode kelas dari guru Anda.');
+      return;
+    }
     if (!newClassName.trim()) return;
 
     const newCls = createClass(newClassName.trim(), newGradeLevel, newDescription.trim());
@@ -63,9 +76,16 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
       <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
-          <h3 className="font-bold text-slate-900 dark:text-white text-base">
-            Manajemen Kelas Sekolah
-          </h3>
+          <div>
+            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+              {isTeacher ? 'Manajemen Kelas (Guru)' : 'Gabung ke Kelas (Siswa)'}
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              {isTeacher
+                ? 'Buat kelas baru atau gabung ke kelas'
+                : 'Siswa bergabung menggunakan kode kelas dari guru'}
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 text-sm font-bold"
@@ -74,35 +94,47 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Mode switcher tabs */}
-        <div className="flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 mt-3">
-          <button
-            onClick={() => {
-              setMode('join');
-              setJoinResult(null);
-            }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              mode === 'join'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-500'
-            }`}
-          >
-            Gabung via Kode
-          </button>
-          <button
-            onClick={() => {
-              setMode('create');
-              setCreatedClassCode(null);
-            }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              mode === 'create'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-500'
-            }`}
-          >
-            Buat Kelas Baru (Guru)
-          </button>
-        </div>
+        {/* Mode switcher tabs (Khusus Guru) / Info Banner (Siswa) */}
+        {isTeacher ? (
+          <div className="flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 mt-3">
+            <button
+              onClick={() => {
+                setMode('create');
+                setCreatedClassCode(null);
+              }}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                mode === 'create'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500'
+              }`}
+            >
+              Buat Kelas Baru (Guru)
+            </button>
+            <button
+              onClick={() => {
+                setMode('join');
+                setJoinResult(null);
+              }}
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                mode === 'join'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500'
+              }`}
+            >
+              Gabung via Kode
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200 mt-3">
+            <KeyRound className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="leading-tight">
+              <span className="font-bold block">Akses Siswa: Masuk Lewat Kode Kelas</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Pembuatan kelas dikhususkan untuk Guru. Siswa hanya dapat bergabung melalui kode kelas resmi.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Mode: Join with code */}
         {mode === 'join' && (

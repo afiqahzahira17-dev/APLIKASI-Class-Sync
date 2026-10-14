@@ -8,6 +8,8 @@ export const INITIAL_STUDENT: User = {
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   identifierNumber: 'NISN. 0092837410',
   schoolName: 'MTs',
+  phone: '081234567890',
+  isPhoneVerified: false,
 };
 
 export const INITIAL_TEACHER: User = {
@@ -18,6 +20,8 @@ export const INITIAL_TEACHER: User = {
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   identifierNumber: 'NIP. 199501012022032001',
   schoolName: 'MTs',
+  phone: '081298765432',
+  isPhoneVerified: true, // Terverifikasi pendidik resmi
 };
 
 // Clean real users only - no sample/fake students

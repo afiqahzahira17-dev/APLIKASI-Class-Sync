@@ -9,8 +9,11 @@ import {
   AppNotification,
   UserBadge,
   PrivacySettings,
+  XpBreakdown,
+  WitaTimeInfo,
 } from '../types';
 import { computeBadges, calculateLevel } from '../utils/gamification';
+import { getWitaNow, minutesToTimeString, timeToMinutes } from '../utils/witaTime';
 import {
   INITIAL_TEACHER,
   INITIAL_STUDENT,
@@ -67,7 +70,7 @@ interface AppContextType {
   addAssignment: (item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>) => void;
   deleteAssignment: (id: string) => void;
 
-  // Submissions
+  // Submissions & Verification
   submissions: Submission[];
   submitAssignment: (
     assignmentId: string,
@@ -75,6 +78,15 @@ interface AppContextType {
     studentNote?: string
   ) => void;
   gradeSubmission: (submissionId: string, grade: number, feedback: string) => void;
+  verifySubmission: (
+    submissionId: string,
+    status: 'verified' | 'rejected',
+    grade?: number,
+    feedback?: string
+  ) => void;
+
+  // Teacher Phone & Verification
+  updateTeacherPhone: (phone: string, verificationPin: string) => { success: boolean; message: string };
 
   // Announcements & Agenda
   announcements: Announcement[];
@@ -96,13 +108,19 @@ interface AppContextType {
   markAllNotificationsAsRead: () => void;
   triggerSimulatedNotification: (type: 'class_reminder' | 'assignment_reminder' | 'new_announcement') => void;
 
-  // Preferences & Simulation
+  // Preferences, WITA Real-time & Simulation
+  witaTimeInfo: WitaTimeInfo;
+  isRealTimeWita: boolean;
+  setIsRealTimeWita: (val: boolean) => void;
+  syncToCurrentWitaTime: () => void;
   simulatedDay: number; // 1 = Senin, 2 = Selasa, ...
   setSimulatedDay: (day: number) => void;
   simulatedTime: string; // "HH:mm"
   setSimulatedTime: (time: string) => void;
   isSimulatingLiveTime: boolean;
   setIsSimulatingLiveTime: (val: boolean) => void;
+  activeLiveClass: ScheduleItem | null;
+  createLiveScheduleNow: (subjectName?: string) => void;
 
   // Display Settings
   isDarkMode: boolean;
@@ -125,6 +143,10 @@ interface AppContextType {
   userXp: number;
   userBadges: UserBadge[];
   userLevel: { level: number; title: string; nextXp: number; prevXp: number };
+  xpBreakdown: XpBreakdown;
+  expiredUnsubmittedAssignments: Assignment[];
+  lastXpGainNotice: { amount: number; reason: string; timestamp: number } | null;
+  clearXpGainNotice: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -229,10 +251,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
   });
 
-  // Time simulation state - defaults to Monday (1) 08:15 AM so "Fisika Dasar & Mekanika" is LIVE
-  const [simulatedDay, setSimulatedDay] = useState<number>(1);
-  const [simulatedTime, setSimulatedTime] = useState<string>('08:15');
+  // Waktu Indonesia Tengah (WITA, UTC+8) Realtime & Simulation state
+  const initialWita = getWitaNow();
+  const [witaTimeInfo, setWitaTimeInfo] = useState<WitaTimeInfo>(initialWita);
+  const [isRealTimeWita, setIsRealTimeWita] = useState<boolean>(true);
+  const [simulatedDay, setSimulatedDay] = useState<number>(initialWita.dayOfWeek);
+  const [simulatedTime, setSimulatedTime] = useState<string>(initialWita.formattedTime);
   const [isSimulatingLiveTime, setIsSimulatingLiveTime] = useState<boolean>(true);
+
+  // Interval real-time sinkronisasi Waktu Indonesia Tengah (WITA)
+  useEffect(() => {
+    const tick = () => {
+      const info = getWitaNow();
+      setWitaTimeInfo(info);
+      if (isRealTimeWita) {
+        setSimulatedDay(info.dayOfWeek);
+        setSimulatedTime(info.formattedTime);
+      }
+    };
+
+    tick();
+    const timerId = setInterval(tick, 1000);
+    return () => clearInterval(timerId);
+  }, [isRealTimeWita]);
+
+  const syncToCurrentWitaTime = () => {
+    const info = getWitaNow();
+    setWitaTimeInfo(info);
+    setSimulatedDay(info.dayOfWeek);
+    setSimulatedTime(info.formattedTime);
+    setIsRealTimeWita(true);
+  };
 
   // Layout & Theme states
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
@@ -263,14 +312,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Gamification (XP, Levels, and Badges)
-  const { badges: userBadges, totalXp: userXp } = useMemo(() => {
-    return computeBadges(submissions, currentUser.id, classes.length);
-  }, [submissions, currentUser.id, classes.length]);
+  // Gamification (XP, Levels, Badges, and Expired Overdue Penalties)
+  const {
+    badges: userBadges,
+    totalXp: userXp,
+    breakdown: xpBreakdown,
+    expiredUnsubmittedAssignments,
+  } = useMemo(() => {
+    return computeBadges(submissions, assignments, currentUser.id, classes.length, simulatedTime);
+  }, [submissions, assignments, currentUser.id, classes.length, simulatedTime]);
 
   const userLevel = useMemo(() => {
     return calculateLevel(userXp);
   }, [userXp]);
+
+  const [lastXpGainNotice, setLastXpGainNotice] = useState<{
+    amount: number;
+    reason: string;
+    timestamp: number;
+  } | null>(null);
+
+  const clearXpGainNotice = () => setLastXpGainNotice(null);
 
   // Supabase State
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
@@ -444,11 +506,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const activeClass = classes.find((c) => c.id === activeClassId) || (classes.length > 0 ? classes[0] : null);
 
+  // Kelas yang sedang berlangsung (Live) terhubung dengan Waktu Nyata WITA
+  const activeLiveClass = useMemo(() => {
+    if (!activeClass) return null;
+    const currentDay = isRealTimeWita ? witaTimeInfo.dayOfWeek : simulatedDay;
+    const currentMinutes = isRealTimeWita ? witaTimeInfo.totalMinutes : timeToMinutes(simulatedTime);
+    return (
+      schedules
+        .filter((s) => s.classId === activeClass.id && s.dayOfWeek === currentDay)
+        .find((s) => {
+          const startMin = timeToMinutes(s.startTime);
+          const endMin = timeToMinutes(s.endTime);
+          return currentMinutes >= startMin && currentMinutes < endMin;
+        }) || null
+    );
+  }, [
+    schedules,
+    activeClass,
+    isRealTimeWita,
+    witaTimeInfo.dayOfWeek,
+    witaTimeInfo.totalMinutes,
+    simulatedDay,
+    simulatedTime,
+  ]);
+
+  const createLiveScheduleNow = (subjectName: string = 'Matematika Terapan') => {
+    if (!activeClass) {
+      alert('Pilih atau buat kelas terlebih dahulu.');
+      return;
+    }
+    const info = getWitaNow();
+    const currentM = info.totalMinutes;
+    const startM = Math.max(0, currentM - 15);
+    const endM = Math.min(1439, currentM + 45);
+    const startStr = minutesToTimeString(startM);
+    const endStr = minutesToTimeString(endM);
+
+    const newItem: ScheduleItem = {
+      id: `sch-${Date.now()}`,
+      classId: activeClass.id,
+      subjectName,
+      teacherName:
+        currentUser.role === 'teacher'
+          ? currentUser.name
+          : activeClass.teacherName || 'Bpk. Hendra S.Pd',
+      teacherPhone: currentUser.phone || activeClass.teacherPhone || '081234567890',
+      isTeacherVerified: true,
+      dayOfWeek: info.dayOfWeek,
+      startTime: startStr,
+      endTime: endStr,
+      roomLocation: 'Ruang 7-A (Lantai 1)',
+      colorTheme: 'emerald',
+      notes: `Sesi KBM aktif disinkronkan otomatis dengan Waktu Nyata WITA (${info.formattedTime}).`,
+    };
+
+    setSchedules((prev) => [...prev, newItem]);
+    safeSupabaseCall(supabase.from('schedules').upsert(mapScheduleToDb(newItem)));
+  };
+
   const setActiveClass = (cls: ClassRoom) => {
     setActiveClassId(cls.id);
   };
 
   const deleteClass = (classId: string) => {
+    if (currentUser.role !== 'teacher') {
+      alert('Siswa tidak dapat menghapus kelas. Tindakan ini hanya untuk guru.');
+      return;
+    }
     setClasses((prev) => {
       const updated = prev.filter((c) => c.id !== classId);
       if (activeClassId === classId) {
@@ -464,6 +588,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearAllClasses = () => {
+    if (currentUser.role !== 'teacher') {
+      alert('Siswa tidak dapat menghapus kelas.');
+      return;
+    }
     classes.forEach((c) => {
       safeSupabaseCall(supabase.from('classes').delete().eq('id', c.id));
     });
@@ -510,6 +638,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createClass = (name: string, gradeLevel: string, description: string): ClassRoom => {
+    if (currentUser.role !== 'teacher') {
+      throw new Error('Siswa tidak memiliki izin membuat kelas baru. Hanya akun guru yang dapat membuat kelas.');
+    }
     const randomCode = `${name.replace(/\s+/g, '-').slice(0, 7).toUpperCase()}-${Math.floor(
       100 + Math.random() * 900
     )}`;
@@ -622,12 +753,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addAssignment = (
     item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>
   ) => {
+    if (currentUser.role !== 'teacher') {
+      alert('Siswa tidak memiliki izin menerbitkan tugas. Hanya akun guru yang dapat membuat tugas.');
+      return;
+    }
     const newAssignment: Assignment = {
       ...item,
       id: `assign-${Date.now()}`,
       createdBy: currentUser.id,
       createdByName: currentUser.name,
       createdAt: new Date().toISOString(),
+      xpPenaltyOverdue: 30, // Pinalti pengurangan XP jika tidak mengumpulkan
     };
     setAssignments((prev) => [newAssignment, ...prev]);
     safeSupabaseCall(supabase.from('assignments').upsert(mapAssignmentToDb(newAssignment)));
@@ -647,6 +783,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAssignment = (id: string) => {
+    if (currentUser.role !== 'teacher') {
+      alert('Siswa tidak dapat menghapus tugas.');
+      return;
+    }
     setAssignments((prev) => prev.filter((a) => a.id !== id));
     setSubmissions((prev) => prev.filter((s) => s.assignmentId !== id));
 
@@ -658,6 +798,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     file: { name: string; size: string; type: string; dataUrl?: string },
     studentNote?: string
   ) => {
+    if (currentUser.role !== 'student') {
+      alert('Akun guru tidak dapat mengumpulkan tugas. Form pengumpulan khusus untuk siswa.');
+      return;
+    }
+
     const targetAssignment = assignments.find((a) => a.id === assignmentId);
     const now = new Date();
     const isLate = targetAssignment ? now > new Date(targetAssignment.dueDate) : false;
@@ -680,6 +825,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentNote,
       submittedAt: now.toISOString(),
       isLate,
+      status: 'pending_verification', // Menunggu verifikasi resmi dari guru
       grade: existingIndex >= 0 ? submissions[existingIndex].grade : undefined,
       feedback: existingIndex >= 0 ? submissions[existingIndex].feedback : undefined,
     };
@@ -702,9 +848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `notif-${Date.now()}`,
       userId: currentUser.id,
       title: '🚀 Tugas Berhasil Dikumpulkan!',
-      message: `File "${file.name}" untuk "${targetAssignment?.title || 'Tugas'}" berhasil diunggah${
-        isLate ? ' (Status: Terlambat)' : ' tepat waktu'
-      }.`,
+      message: `File "${file.name}" untuk "${targetAssignment?.title || 'Tugas'}" berhasil dikirim. Menunggu verifikasi dari guru pengampu agar XP Anda bertambah!`,
       type: 'assignment_reminder',
       timestamp: now.toISOString(),
       isRead: false,
@@ -713,10 +857,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications((prev) => [notif, ...prev]);
   };
 
-  const gradeSubmission = (submissionId: string, grade: number, feedback: string) => {
+  const verifySubmission = (
+    submissionId: string,
+    status: 'verified' | 'rejected',
+    grade?: number,
+    feedback?: string
+  ) => {
+    if (currentUser.role !== 'teacher') {
+      alert('Hanya akun guru yang dapat memverifikasi pengumpulan tugas siswa.');
+      return;
+    }
+
     const now = new Date().toISOString();
-    let studentTargetId = '';
     let assignTitle = '';
+    let studentTargetId = '';
+    let awardedXp = 0;
 
     setSubmissions((prev) =>
       prev.map((s) => {
@@ -724,11 +879,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           studentTargetId = s.studentId;
           const relatedAssignment = assignments.find((a) => a.id === s.assignmentId);
           assignTitle = relatedAssignment?.title || 'Tugas';
+          awardedXp = status === 'verified' ? (s.isLate ? 50 : 75) : 0;
+          if (typeof grade === 'number' && grade >= 85) {
+            awardedXp += 50;
+          }
+
           return {
             ...s,
-            grade,
-            feedback,
-            gradedAt: now,
+            status,
+            verifiedAt: now,
+            verifiedBy: currentUser.name,
+            xpAwarded: awardedXp,
+            grade: grade !== undefined ? grade : s.grade,
+            feedback: feedback !== undefined ? feedback : s.feedback,
+            gradedAt: grade !== undefined ? now : s.gradedAt,
           };
         }
         return s;
@@ -739,23 +903,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeSupabaseCall(
       supabase
         .from('submissions')
-        .update({ grade, feedback, graded_at: now })
+        .update({
+          grade: grade,
+          feedback: feedback,
+          graded_at: now,
+        })
         .eq('id', submissionId)
     );
 
+    // Trigger glowing XP notice
+    if (status === 'verified') {
+      setLastXpGainNotice({
+        amount: awardedXp,
+        reason: `Tugas "${assignTitle}" diverifikasi oleh ${currentUser.name}!`,
+        timestamp: Date.now(),
+      });
+    }
+
     // Send notification to student
     if (studentTargetId) {
-      const gradeNotif: AppNotification = {
+      const notif: AppNotification = {
         id: `notif-${Date.now()}`,
         userId: studentTargetId,
-        title: '⭐ Tugas Telah Dinilai',
-        message: `${currentUser.name} telah memberi nilai ${grade}/100 untuk "${assignTitle}". Masukan: "${feedback.slice(0, 80)}${feedback.length > 80 ? '...' : ''}"`,
+        title: status === 'verified' ? '🌟 Tugas Diverifikasi Guru (+XP Menyala!)' : '⚠️ Tugas Perlu Diperbaiki',
+        message:
+          status === 'verified'
+            ? `${currentUser.name} telah memverifikasi tugas "${assignTitle}". XP Anda bertambah +${awardedXp} XP!${
+                grade !== undefined ? ` Nilai: ${grade}/100.` : ''
+              }`
+            : `${currentUser.name} meminta perbaikan pada tugas "${assignTitle}": "${feedback || 'Mohon lengkapi tugas Anda'}"`,
         type: 'grade_posted',
         timestamp: now,
         isRead: false,
       };
-      setNotifications((prev) => [gradeNotif, ...prev]);
+      setNotifications((prev) => [notif, ...prev]);
     }
+  };
+
+  const gradeSubmission = (submissionId: string, grade: number, feedback: string) => {
+    verifySubmission(submissionId, 'verified', grade, feedback);
+  };
+
+  const updateTeacherPhone = (
+    phone: string,
+    verificationPin: string
+  ): { success: boolean; message: string } => {
+    if (currentUser.role !== 'teacher') {
+      return { success: false, message: 'Hanya akun guru yang dapat mengatur nomor kontak resmi.' };
+    }
+
+    // PIN verifikasi sekolah resmi (1985 / 1234 / 2026 atau PIN NIP 4 digit)
+    const validPins = ['1985', '1234', '2026', '7788'];
+    const isPinValid = validPins.includes(verificationPin.trim()) || verificationPin.trim().length >= 4;
+
+    if (!isPinValid) {
+      return {
+        success: false,
+        message: 'PIN verifikasi guru tidak valid. Masukkan PIN keamanan pendidik resmi (misal: 1985).',
+      };
+    }
+
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 9) {
+      return {
+        success: false,
+        message: 'Nomor WhatsApp tidak valid. Masukkan nomor HP aktif (contoh: 081234567890).',
+      };
+    }
+
+    // Format to Indonesian standard
+    let formattedPhone = cleanPhone;
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '62' + formattedPhone.slice(1);
+    }
+
+    // Update currentUser state
+    setCurrentUserState((prev) => {
+      const updated = {
+        ...prev,
+        phone: formattedPhone,
+        isPhoneVerified: true,
+      };
+      localStorage.setItem('classsync_user', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Update active class & schedule items teacherPhone
+    if (activeClass) {
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === activeClass.id
+            ? { ...c, teacherPhone: formattedPhone, isTeacherVerified: true }
+            : c
+        )
+      );
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.classId === activeClass.id
+            ? { ...s, teacherPhone: formattedPhone, isTeacherVerified: true }
+            : s
+        )
+      );
+    }
+
+    return {
+      success: true,
+      message: 'Nomor WhatsApp resmi guru berhasil diverifikasi! Siswa sekarang dapat langsung terhubung ke WhatsApp Anda.',
+    };
   };
 
   const addAnnouncement = (
@@ -898,12 +1152,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markNotificationAsRead,
         markAllNotificationsAsRead,
         triggerSimulatedNotification,
+        witaTimeInfo,
+        isRealTimeWita,
+        setIsRealTimeWita,
+        syncToCurrentWitaTime,
         simulatedDay,
         setSimulatedDay,
         simulatedTime,
         setSimulatedTime,
         isSimulatingLiveTime,
         setIsSimulatingLiveTime,
+        activeLiveClass,
+        createLiveScheduleNow,
         isDarkMode,
         setIsDarkMode,
         isMobileDeviceFrame,
@@ -918,6 +1178,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userXp,
         userBadges,
         userLevel,
+        verifySubmission,
+        updateTeacherPhone,
+        xpBreakdown,
+        expiredUnsubmittedAssignments,
+        lastXpGainNotice,
+        clearXpGainNotice,
       }}
     >
       {children}

@@ -9,6 +9,8 @@ export interface User {
   identifierNumber: string; // NISN for student, NIP for teacher
   className?: string; // e.g. "X MIPA 1"
   schoolName: string;
+  phone?: string; // WhatsApp number
+  isPhoneVerified?: boolean; // Verifikasi nomor WhatsApp guru agar tidak disalahgunakan
   xp?: number;
   level?: number;
 }
@@ -25,6 +27,14 @@ export interface UserBadge {
   isUnlocked: boolean;
 }
 
+export interface XpBreakdown {
+  baseXp: number;
+  badgesXp: number;
+  verifiedBonusXp: number;
+  expiredPenaltyXp: number;
+  totalXp: number;
+}
+
 export interface PrivacySettings {
   hideSpecificLocations: boolean; // sembunyikan nama ruangan spesifik dari publik
   membersOnlySchedule: boolean; // jadwal hanya terlihat oleh anggota kelas
@@ -39,6 +49,8 @@ export interface ClassRoom {
   code: string; // e.g. "X-MIPA1-2026"
   teacherId: string;
   teacherName: string;
+  teacherPhone?: string; // Kontak WhatsApp resmi guru
+  isTeacherVerified?: boolean; // Status verifikasi nomor guru
   subjectDefault?: string;
   academicYear: string;
   studentCount: number;
@@ -51,6 +63,8 @@ export interface ScheduleItem {
   classId: string;
   subjectName: string;
   teacherName: string;
+  teacherPhone?: string; // Kontak WhatsApp guru pengampu
+  isTeacherVerified?: boolean; // Status verifikasi nomor guru
   dayOfWeek: number; // 1 = Senin, 2 = Selasa, 3 = Rabu, 4 = Kamis, 5 = Jumat, 6 = Sabtu
   startTime: string; // "07:30"
   endTime: string; // "09:00"
@@ -78,6 +92,7 @@ export interface Assignment {
   createdByName: string;
   createdAt: string;
   maxScore: number;
+  xpPenaltyOverdue?: number; // Pengurangan XP jika tidak mengumpulkan sampai tenggat (default 30)
 }
 
 export interface Submission {
@@ -93,6 +108,10 @@ export interface Submission {
   studentNote?: string;
   submittedAt: string; // ISO string
   isLate: boolean;
+  status?: 'pending_verification' | 'verified' | 'rejected'; // Verifikasi guru
+  verifiedAt?: string;
+  verifiedBy?: string;
+  xpAwarded?: number; // XP bertambah saat diverifikasi oleh guru
   grade?: number; // 0 - 100
   feedback?: string;
   gradedAt?: string;
@@ -125,4 +144,18 @@ export interface AppNotification {
   relatedId?: string; // classId, assignmentId, etc.
   roomLocation?: string;
   dueTimeText?: string;
+}
+
+export interface WitaTimeInfo {
+  date: Date;
+  dayOfWeek: number; // 1 = Senin, 2 = Selasa, 3 = Rabu, 4 = Kamis, 5 = Jumat, 6 = Sabtu, 7 = Minggu
+  dayName: string;
+  formattedDate: string; // "Rabu, 14 Oktober 2026"
+  formattedTime: string; // "08:15"
+  formattedTimeWithSeconds: string; // "08:15:30"
+  hours: number;
+  minutes: number;
+  seconds: number;
+  totalMinutes: number; // hours * 60 + minutes
+  timezoneLabel: string; // "WITA (UTC+8)"
 }
