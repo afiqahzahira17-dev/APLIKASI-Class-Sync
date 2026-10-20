@@ -10,6 +10,7 @@ export const INITIAL_STUDENT: User = {
   schoolName: 'MTs',
   phone: '081234567890',
   isPhoneVerified: false,
+  attendanceNumber: 1,
 };
 
 export const INITIAL_TEACHER: User = {

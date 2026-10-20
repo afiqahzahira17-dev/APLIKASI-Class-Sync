@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Assignment, Submission, AssignmentAttachment } from '../types';
 import { EmptyClassState } from './EmptyClassState';
 import { TeacherPhoneVerificationModal } from './TeacherPhoneVerificationModal';
+import { GamificationModal } from './GamificationModal';
 import confetti from 'canvas-confetti';
 import {
   CheckSquare,
@@ -31,6 +32,11 @@ import {
   ExternalLink,
   Flame,
   CheckCircle2,
+  Pencil,
+  ListOrdered,
+  BookOpen,
+  Trophy,
+  Info,
 } from 'lucide-react';
 
 interface AssignmentViewProps {
@@ -44,6 +50,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     assignments,
     submissions,
     addAssignment,
+    updateAssignment,
     deleteAssignment,
     submitAssignment,
     gradeSubmission,
@@ -83,6 +90,28 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const [newDescription, setNewDescription] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [attachmentName, setAttachmentName] = useState('');
+
+  // Teacher Edit assignment form & modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSubject, setEditSubject] = useState("Al-Qur'an Hadits");
+  const [editDescription, setEditDescription] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAttachmentName, setEditAttachmentName] = useState('');
+  const [editMaxScore, setEditMaxScore] = useState<number>(100);
+
+  // Student upload attendance number
+  const [attendanceNumberInput, setAttendanceNumberInput] = useState<number>(
+    currentUser.attendanceNumber || 1
+  );
+
+  // Teacher Review sorting: 'attendance' (default) | 'time'
+  const [sortSubmissionBy, setSortSubmissionBy] = useState<'attendance' | 'time'>('attendance');
+
+  // XP Explanation card & Gamification modal
+  const [showXpGuide, setShowXpGuide] = useState(false);
+  const [showGamificationModal, setShowGamificationModal] = useState(false);
 
   // Teacher grading & verification modal state
   const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
@@ -163,7 +192,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
     setIsSubmitting(true);
     setTimeout(() => {
-      submitAssignment(selectedAssignmentForSubmit.id, uploadFile, studentNote);
+      submitAssignment(
+        selectedAssignmentForSubmit.id,
+        uploadFile,
+        studentNote,
+        attendanceNumberInput
+      );
       setIsSubmitting(false);
       setSelectedAssignmentForSubmit(null);
       setUploadFile(null);
@@ -208,6 +242,53 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     setNewDescription('');
     setNewDueDate('');
     setAttachmentName('');
+  };
+
+  // Handlers for Teacher Assignment Edit
+  const handleOpenEditAssignment = (assignment: Assignment) => {
+    setEditingAssignment(assignment);
+    setEditTitle(assignment.title);
+    setEditSubject(assignment.subjectName);
+    setEditDescription(assignment.description);
+    try {
+      const d = new Date(assignment.dueDate);
+      const isoLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+      setEditDueDate(isoLocal);
+    } catch {
+      setEditDueDate(assignment.dueDate);
+    }
+    setEditMaxScore(assignment.maxScore || 100);
+    setEditAttachmentName(assignment.attachments?.[0]?.name || '');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditAssignment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAssignment || !editTitle.trim() || !editDueDate) return;
+
+    const attachmentsList: AssignmentAttachment[] = editAttachmentName.trim()
+      ? [
+          {
+            name: editAttachmentName.trim(),
+            size: editingAssignment.attachments?.[0]?.size || '1.2 MB',
+            type: 'application/pdf',
+          },
+        ]
+      : editingAssignment.attachments || [];
+
+    updateAssignment(editingAssignment.id, {
+      title: editTitle.trim(),
+      subjectName: editSubject.trim(),
+      description: editDescription.trim(),
+      dueDate: editDueDate,
+      attachments: attachmentsList,
+      maxScore: editMaxScore,
+    });
+
+    setShowEditModal(false);
+    setEditingAssignment(null);
   };
 
   // Teacher Verifies and Awards Glowing XP
@@ -304,11 +385,25 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
         </div>
 
         <div className="flex items-center gap-2">
+          {/* XP Info Button */}
+          <button
+            onClick={() => setShowXpGuide((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors shrink-0 cursor-pointer ${
+              showXpGuide
+                ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 hover:bg-amber-100'
+            }`}
+            title="Penjelasan Sistem XP & Prestasi Belajar"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Penjelasan XP</span>
+          </button>
+
           {currentUser.role === 'teacher' ? (
             <>
               <button
                 onClick={() => setShowPhoneModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold shadow-xs transition-colors shrink-0"
+                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold shadow-xs transition-colors shrink-0 cursor-pointer"
                 title="Atur & Verifikasi Nomor WhatsApp Guru"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -354,6 +449,70 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
           )}
         </div>
       </div>
+
+      {/* XP System Explanation Card */}
+      {showXpGuide && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-indigo-500/10 rounded-2xl p-4 border border-amber-300 dark:border-amber-900/60 shadow-xs space-y-3 animate-in fade-in">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-bold shrink-0">
+                <Sparkles className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <span>Panduan & Penjelasan Sistem XP (Experience Points)</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    {userXp} XP Anda
+                  </span>
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  XP adalah poin keaktifan, kedisiplinan, dan prestasi akademik siswa di ClassyWork.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowGamificationModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trophy className="w-3.5 h-3.5" />
+              <span>Lihat Lencana & Level</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/40">
+              <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold mb-1">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>+75 XP Tugas Tepat Waktu</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                XP otomatis menyala dan bertambah ketika siswa mengumpulkan tugas sebelum batas tenggat dan diverifikasi guru.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900/40">
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-bold mb-1">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+                <span>+50 XP Bonus Nilai Unggul</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Bonus ekstra bagi siswa yang meraih nilai tugas <b>≥ 85</b> dari penilaian guru.
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900/40">
+              <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-bold mb-1">
+                <Flame className="w-4 h-4 text-rose-500 shrink-0" />
+                <span>-30 XP Pinalti Kadaluwarsa</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Pengurangan XP otomatis jika tugas melewati batas tenggat waktu KBM tanpa pengumpulan siswa.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Warning Banner: Expired Assignments Penalty for Student */}
       {currentUser.role === 'student' && studentExpiredCount > 0 && (
@@ -522,17 +681,27 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   </div>
 
                   {currentUser.role === 'teacher' && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Hapus tugas "${assignment.title}"?`)) {
-                          deleteAssignment(assignment.id);
-                        }
-                      }}
-                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
-                      title="Hapus Tugas"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        id={`edit-assignment-btn-${assignment.id}`}
+                        onClick={() => handleOpenEditAssignment(assignment)}
+                        className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Edit Tugas Ini"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Hapus tugas "${assignment.title}"?`)) {
+                            deleteAssignment(assignment.id);
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+                        title="Hapus Tugas"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -647,16 +816,27 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                         </span>
                       </button>
                     ) : (
-                      <button
-                        id={`review-btn-${assignment.id}`}
-                        onClick={() => setSelectedAssignmentForReview(assignment)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>
-                          Periksa & Verifikasi ({classSubmissions.length} Siswa)
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          id={`edit-assignment-bottom-btn-${assignment.id}`}
+                          onClick={() => handleOpenEditAssignment(assignment)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Edit Tugas Ini"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>Edit Tugas</span>
+                        </button>
+                        <button
+                          id={`review-btn-${assignment.id}`}
+                          onClick={() => setSelectedAssignmentForReview(assignment)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
+                        >
+                          <ListOrdered className="w-3.5 h-3.5" />
+                          <span>
+                            Nilai & Urut Absen ({classSubmissions.length})
+                          </span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -700,6 +880,33 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                 </p>
                 <p className="text-slate-600 dark:text-slate-400 mt-1 italic">
                   "{selectedAssignmentForSubmit.description}"
+                </p>
+              </div>
+
+              {/* Input Nomor Absen Siswa */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Nomor Urut Absen Siswa *
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="w-12 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono font-bold flex items-center justify-center text-xs shrink-0">
+                    #{attendanceNumberInput.toString().padStart(2, '0')}
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    required
+                    value={attendanceNumberInput}
+                    onChange={(e) =>
+                      setAttendanceNumberInput(Math.max(1, parseInt(e.target.value) || 1))
+                    }
+                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+                    placeholder="Nomor absen (contoh: 1, 2, 3...)"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Pengumpulan tugas akan otomatis diurutkan sesuai nomor absen ini di portal penilaian guru.
                 </p>
               </div>
 
@@ -881,6 +1088,139 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
         </div>
       )}
 
+      {/* Teacher Edit Assignment Modal */}
+      {showEditModal && editingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  Edit Tugas Belajar (Mode Guru)
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingAssignment(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditAssignment} className="mt-4 space-y-3.5">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Judul Tugas *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Judul tugas..."
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Mata Pelajaran *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Mata pelajaran..."
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Tenggat Pengumpulan *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Nilai Maksimal
+                  </label>
+                  <input
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={editMaxScore}
+                    onChange={(e) => setEditMaxScore(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Petunjuk & Kriteria Tugas *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Petunjuk pengerjaan..."
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Nama File Lampiran Soal / Modul (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Modul_Tugas_04.pdf"
+                  value={editAttachmentName}
+                  onChange={(e) => setEditAttachmentName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingAssignment(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Simpan Perubahan Tugas</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Teacher Review, Grading & Verification Modal */}
       {selectedAssignmentForReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -905,9 +1245,27 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
             {/* List of submissions */}
             <div className="mt-4 space-y-3">
               {(() => {
-                const subs = submissions.filter(
-                  (s) => s.assignmentId === selectedAssignmentForReview.id
-                );
+                const subs = submissions
+                  .filter((s) => s.assignmentId === selectedAssignmentForReview.id)
+                  .sort((a, b) => {
+                    if (sortSubmissionBy === 'attendance') {
+                      const numA = a.attendanceNumber ?? 999;
+                      const numB = b.attendanceNumber ?? 999;
+                      return numA - numB;
+                    }
+                    return (
+                      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+                    );
+                  });
+
+                const gradedSubs = subs.filter((s) => s.grade !== undefined);
+                const avgScore =
+                  gradedSubs.length > 0
+                    ? Math.round(
+                        gradedSubs.reduce((acc, curr) => acc + (curr.grade || 0), 0) /
+                          gradedSubs.length
+                      )
+                    : null;
 
                 if (subs.length === 0) {
                   return (
@@ -916,200 +1274,290 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                         Belum ada siswa yang mengumpulkan tugas ini.
                       </p>
                       <p className="text-xs text-slate-400">
-                        Siswa yang telah mengunggah file jawaban akan muncul di sini untuk Anda verifikasi dan berikan XP.
+                        Siswa yang telah mengunggah file jawaban akan muncul di sini sesuai nomor urut absen untuk Anda cantumkan nilai dan berikan verifikasi XP.
                       </p>
                     </div>
                   );
                 }
 
-                return subs.map((sub) => {
-                  const isGradingThis = gradingSubmissionId === sub.id;
-                  const isVerified = sub.status === 'verified';
-
-                  return (
-                    <div
-                      key={sub.id}
-                      className={`p-4 rounded-xl border transition-all space-y-3 ${
-                        isVerified
-                          ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20'
-                          : 'border-amber-300 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={sub.studentAvatar}
-                            alt={sub.studentName}
-                            className="w-10 h-10 rounded-full object-cover border"
-                          />
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
-                                {sub.studentName}
-                              </h5>
-                              {isVerified ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  Terverifikasi (+{sub.xpAwarded || 75} XP)
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
-                                  ⏳ Menunggu Verifikasi Guru
-                                </span>
-                              )}
-                              {sub.isLate && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
-                                  Terlambat
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-slate-400">
-                              Dikumpulkan: {formatDueDate(sub.submittedAt)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Current Grade Badge */}
-                        <div className="text-right shrink-0">
-                          {sub.grade !== undefined ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-xs">
-                              <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
-                              {sub.grade} / 100
-                            </span>
-                          ) : (
-                            <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded">
-                              Belum Dinilai
-                            </span>
-                          )}
+                return (
+                  <>
+                    {/* Attendance Sorting & Overview Bar */}
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          Urutan:
+                        </span>
+                        <div className="flex items-center bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => setSortSubmissionBy('attendance')}
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                              sortSubmissionBy === 'attendance'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                            }`}
+                          >
+                            <ListOrdered className="w-3.5 h-3.5" />
+                            <span>Sesuai No. Absen (1 - 40)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSortSubmissionBy('time')}
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                              sortSubmissionBy === 'time'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                            }`}
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Waktu Kirim</span>
+                          </button>
                         </div>
                       </div>
 
-                      {/* File Details & Download button */}
-                      <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
-                          <div className="truncate">
-                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                              {sub.fileName}
-                            </p>
-                            <p className="text-[10px] text-slate-400">{sub.fileSize}</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => alert(`Mengunduh file pengumpulan tugas: ${sub.fileName}`)}
-                          className="px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg flex items-center gap-1 shrink-0"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Unduh Berkas</span>
-                        </button>
+                      <div className="flex items-center gap-2.5 text-[11px] text-slate-500 font-medium">
+                        <span>Total: <b className="text-slate-800 dark:text-slate-200">{subs.length} Siswa</b></span>
+                        <span>•</span>
+                        <span>Dinilai: <b className="text-emerald-600">{gradedSubs.length}/{subs.length}</b></span>
+                        {avgScore !== null && (
+                          <>
+                            <span>•</span>
+                            <span>Rata-rata: <b className="text-indigo-600 font-bold">{avgScore}</b></span>
+                          </>
+                        )}
                       </div>
-
-                      {/* Student Note */}
-                      {sub.studentNote && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                          Catatan Siswa: "{sub.studentNote}"
-                        </p>
-                      )}
-
-                      {/* Teacher Actions & Verification Form */}
-                      {isGradingThis ? (
-                        <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                                Nilai (0 - 100)
-                              </label>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={scoreInput}
-                                onChange={(e) => setScoreInput(Number(e.target.value))}
-                                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
-                                Umpan Balik (Feedback untuk Siswa)
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="Contoh: Jawaban sangat rapi dan lengkap..."
-                                value={feedbackInput}
-                                onChange={(e) => setFeedbackInput(e.target.value)}
-                                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => setGradingSubmissionId(null)}
-                              className="px-3 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-slate-100"
-                            >
-                              Batal
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleVerifySubmissionAction(
-                                  sub.id,
-                                  'verified',
-                                  scoreInput,
-                                  feedbackInput
-                                )
-                              }
-                              className="px-4 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white shadow-md flex items-center gap-1.5"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Simpan & Verifikasi (+XP Menyala!)</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                          {sub.feedback && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 italic line-clamp-1">
-                              Feedback: "{sub.feedback}"
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-2 ml-auto">
-                            {!isVerified && (
-                              <button
-                                onClick={() =>
-                                  handleVerifySubmissionAction(
-                                    sub.id,
-                                    'verified',
-                                    sub.grade || 90,
-                                    sub.feedback || 'Tugas diverifikasi oleh guru pengampu'
-                                  )
-                                }
-                                className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
-                              >
-                                <Sparkles className="w-3.5 h-3.5" />
-                                <span>Verifikasi Cepat (+125 XP)</span>
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => {
-                                setGradingSubmissionId(sub.id);
-                                setScoreInput(sub.grade !== undefined ? sub.grade : 90);
-                                setFeedbackInput(sub.feedback || 'Bagus sekali!');
-                              }}
-                              className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors"
-                            >
-                              {sub.grade !== undefined
-                                ? 'Ubah Nilai & Feedback'
-                                : 'Beri Nilai & Verifikasi'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  );
-                });
+
+                    {subs.map((sub) => {
+                      const isGradingThis = gradingSubmissionId === sub.id;
+                      const isVerified = sub.status === 'verified';
+
+                      return (
+                        <div
+                          key={sub.id}
+                          className={`p-4 rounded-xl border transition-all space-y-3 ${
+                            isVerified
+                              ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20'
+                              : 'border-amber-300 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              {/* Urutan Nomor Absen Badge */}
+                              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-mono font-black text-xs flex flex-col items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-200 dark:ring-indigo-900">
+                                <span className="text-[9px] uppercase tracking-wider opacity-80 leading-none">Absen</span>
+                                <span className="text-sm font-black leading-tight">
+                                  #{String(sub.attendanceNumber || 1).padStart(2, '0')}
+                                </span>
+                              </div>
+
+                              <img
+                                src={sub.studentAvatar}
+                                alt={sub.studentName}
+                                className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                              />
+
+                              <div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                                    {sub.studentName}
+                                  </h5>
+                                  {isVerified ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                      Terverifikasi (+{sub.xpAwarded || 75} XP)
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
+                                      ⏳ Menunggu Verifikasi Guru
+                                    </span>
+                                  )}
+                                  {sub.isLate && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
+                                      Terlambat
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-400">
+                                  Dikumpulkan: {formatDueDate(sub.submittedAt)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Current Grade Badge & Predicate */}
+                            <div className="text-right shrink-0">
+                              {sub.grade !== undefined ? (
+                                <div className="space-y-0.5 text-right">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-xs">
+                                    <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                                    {sub.grade} / 100
+                                  </span>
+                                  <span className="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    {sub.grade >= 90
+                                      ? 'Predikat A (Sangat Baik)'
+                                      : sub.grade >= 80
+                                      ? 'Predikat B (Baik)'
+                                      : sub.grade >= 70
+                                      ? 'Predikat C (Cukup)'
+                                      : 'Predikat D (Perlu Bimbingan)'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded">
+                                  Belum Dinilai
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* File Details & Download button */}
+                          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
+                            <div className="flex items-center gap-2 truncate">
+                              <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                              <div className="truncate">
+                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                  {sub.fileName}
+                                </p>
+                                <p className="text-[10px] text-slate-400">{sub.fileSize}</p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => alert(`Mengunduh file jawaban: ${sub.fileName}`)}
+                              className="px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Unduh Berkas</span>
+                            </button>
+                          </div>
+
+                          {/* Student Note */}
+                          {sub.studentNote && (
+                            <p className="text-xs text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                              Catatan Siswa: "{sub.studentNote}"
+                            </p>
+                          )}
+
+                          {/* Teacher Actions & Verification Form */}
+                          {isGradingThis ? (
+                            <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <div>
+                                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                                    Cantumkan Nilai (0 - 100) *
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={scoreInput}
+                                    onChange={(e) => setScoreInput(Number(e.target.value))}
+                                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold font-mono"
+                                  />
+                                  <div className="flex gap-1 mt-1">
+                                    {[100, 95, 85, 75].map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => setScoreInput(preset)}
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 hover:bg-indigo-100 text-slate-700 dark:text-slate-300 font-semibold"
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                                    Catatan / Umpan Balik Guru
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Contoh: Jawaban sangat rapi dan lengkap..."
+                                    value={feedbackInput}
+                                    onChange={(e) => setFeedbackInput(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setGradingSubmissionId(null)}
+                                  className="px-3 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
+                                >
+                                  Batal
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleVerifySubmissionAction(
+                                      sub.id,
+                                      'verified',
+                                      scoreInput,
+                                      feedbackInput
+                                    )
+                                  }
+                                  className="px-4 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white shadow-md flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Simpan Nilai & Beri XP (+{scoreInput >= 85 ? 125 : 75} XP)</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 flex-wrap">
+                              {sub.feedback && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic line-clamp-1">
+                                  Catatan Guru: "{sub.feedback}"
+                                </p>
+                              )}
+
+                              <div className="flex items-center gap-2 ml-auto">
+                                {!isVerified && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleVerifySubmissionAction(
+                                        sub.id,
+                                        'verified',
+                                        sub.grade || 90,
+                                        sub.feedback || 'Tugas diverifikasi oleh guru pengampu'
+                                      )
+                                    }
+                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>Verifikasi Cepat (+125 XP)</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGradingSubmissionId(sub.id);
+                                    setScoreInput(sub.grade !== undefined ? sub.grade : 90);
+                                    setFeedbackInput(sub.feedback || 'Bagus sekali!');
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>
+                                    {sub.grade !== undefined
+                                      ? 'Ubah Nilai & Feedback'
+                                      : 'Cantumkan Nilai'}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
               })()}
             </div>
           </div>

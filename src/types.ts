@@ -11,6 +11,7 @@ export interface User {
   schoolName: string;
   phone?: string; // WhatsApp number
   isPhoneVerified?: boolean; // Verifikasi nomor WhatsApp guru agar tidak disalahgunakan
+  attendanceNumber?: number; // Nomor urut absen siswa (1, 2, 3...)
   xp?: number;
   level?: number;
 }
@@ -101,6 +102,7 @@ export interface Submission {
   studentId: string;
   studentName: string;
   studentAvatar: string;
+  attendanceNumber?: number; // Nomor urut absen siswa saat mengumpulkan
   fileName: string;
   fileSize: string;
   fileType: string;

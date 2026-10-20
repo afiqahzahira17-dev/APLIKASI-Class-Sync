@@ -36,7 +36,6 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     { id: 4, label: 'Kamis', short: 'Kam' },
     { id: 5, label: 'Jumat', short: 'Jum' },
     { id: 6, label: 'Sabtu', short: 'Sab' },
-    { id: 7, label: 'Minggu', short: 'Min' },
   ];
 
   const timeToMinutes = (timeStr: string): number => {
@@ -64,7 +63,6 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
       4: [],
       5: [],
       6: [],
-      7: [],
     };
     classSchedules.forEach((s) => {
       if (map[s.dayOfWeek]) {
@@ -159,8 +157,8 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
           </span>
         </div>
 
-        {/* 7-Column Responsive Weekly Matrix */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800/80">
+        {/* 6-Column Responsive Weekly Matrix (Senin - Sabtu) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800/80">
           {days.map((day) => {
             const dayItems = schedulesByDay[day.id] || [];
             const isToday = effectiveDay === day.id;

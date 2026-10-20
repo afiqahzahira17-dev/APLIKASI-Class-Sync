@@ -9,15 +9,15 @@ import {
   Plus,
   ShieldCheck,
   Clock,
-  Database,
   Trophy,
   Shield,
   KeyRound,
   Radio,
   RotateCcw,
   CheckCircle2,
+  Info,
+  Sparkles,
 } from 'lucide-react';
-import { SupabaseModal } from './SupabaseModal';
 import { GamificationModal } from './GamificationModal';
 import { PrivacySettingsModal } from './PrivacySettingsModal';
 
@@ -45,9 +45,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     simulatedDay,
     setSimulatedDay,
     setSimulatedTime,
-    isSupabaseConnected,
-    isSupabaseSyncing,
-    syncWithSupabase,
     userXp,
     witaTimeInfo,
     isRealTimeWita,
@@ -58,7 +55,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   } = useApp();
 
   const [showTimeModal, setShowTimeModal] = useState(false);
-  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
   const [showGamificationModal, setShowGamificationModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
@@ -69,50 +65,50 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   return (
     <>
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+        <div className="max-w-5xl mx-auto px-2.5 sm:px-4 py-2 flex items-center justify-between gap-1.5 sm:gap-2">
           {/* Brand & Active Class Info */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+          <div className="flex items-center gap-2 min-w-0 shrink">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <GraduationCap className="w-4 h-4" />
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">
+              <div className="flex items-center gap-1">
+                <span className="font-extrabold text-xs sm:text-sm tracking-tight text-slate-900 dark:text-white">
                   ClassyWork
                 </span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  InfoKelas
+                <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hidden xs:inline">
+                  Madrasah
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                {activeClass ? `${activeClass.gradeLevel} • ${activeClass.name}` : 'Belum Ada Kelas'}
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[85px] xs:max-w-[120px] sm:max-w-[200px]">
+                {activeClass ? `${activeClass.name}` : 'Belum Ada Kelas'}
               </p>
             </div>
           </div>
 
-          {/* Right Actions: Role toggle, Notification, Dark mode, Profile */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Right Actions: Role toggle, WITA Clock, XP Info, Theme, Bell, Profile */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Quick Switch Role Pill */}
             <button
               id="switch-role-header-btn"
               onClick={switchRole}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all border ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
                 currentUser.role === 'teacher'
                   ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-800 dark:text-indigo-300 hover:bg-indigo-100'
                   : 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
               }`}
               title="Ganti peran antara Guru dan Siswa"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheck className="w-3 h-3" />
               <span>{currentUser.role === 'teacher' ? 'Guru' : 'Siswa'}</span>
             </button>
 
-            {/* Live WITA Clock Badge & Trigger */}
+            {/* Live WITA Clock Badge */}
             <button
               id="time-sim-btn"
               onClick={() => setShowTimeModal(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-all border shrink-0 cursor-pointer ${
                 isRealTimeWita
                   ? 'bg-sky-50 border-sky-200 text-sky-700 dark:bg-sky-950/50 dark:border-sky-800 dark:text-sky-300 hover:bg-sky-100 shadow-2xs'
                   : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300 hover:bg-amber-100'
@@ -120,100 +116,72 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               title="Waktu Indonesia Tengah (WITA, UTC+8)"
             >
               <Radio
-                className={`w-3 h-3 ${isRealTimeWita ? 'text-sky-600 animate-pulse' : 'text-amber-600'}`}
+                className={`w-2.5 h-2.5 ${isRealTimeWita ? 'text-sky-600 animate-pulse' : 'text-amber-600'}`}
               />
-              <span className="font-mono text-[11px]">
-                {witaTimeInfo.formattedTime} WITA
+              <span className="font-mono text-[10px] sm:text-[11px]">
+                {witaTimeInfo.formattedTime}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-sky-600 dark:text-sky-400 font-extrabold hidden xs:inline">
+                WITA
               </span>
             </button>
 
-            {/* Indicator Kelas Sedang Berlangsung Sekarang di WITA */}
-            {activeLiveClass && (
-              <button
-                onClick={() => setActiveTab('jadwal')}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer shadow-2xs"
-                title={`Kelas ${activeLiveClass.subjectName} sedang berlangsung di WITA (${activeLiveClass.startTime} - ${activeLiveClass.endTime})`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span className="truncate max-w-[130px]">Live: {activeLiveClass.subjectName}</span>
-              </button>
-            )}
-
-            {/* Supabase Cloud DB status button */}
+            {/* XP Gamification Pill - opens Penjelasan XP Modal */}
             <button
-              id="supabase-status-btn"
-              onClick={() => setShowSupabaseModal(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all border ${
-                isSupabaseConnected
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:bg-slate-100'
-              }`}
-              title="Database Supabase Cloud & Sinkronisasi"
-            >
-              <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Supabase</span>
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isSupabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
-                }`}
-              />
-            </button>
-
-            {/* XP Gamification Badge */}
-            <button
+              id="xp-info-header-btn"
               onClick={() => setShowGamificationModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 shadow-2xs"
-              title="Lihat Lencana & XP Prestasi"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-all border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 shadow-2xs shrink-0 cursor-pointer"
+              title="Klik untuk melihat Penjelasan Sistem XP & Prestasi Belajar"
             >
-              <Trophy className="w-3.5 h-3.5 text-amber-500" />
+              <Trophy className="w-3 h-3 text-amber-500" />
               <span>{userXp} XP</span>
             </button>
 
-            {/* Privacy & Security modal trigger */}
+            {/* Privacy Modal trigger (Hidden on tiny screens to avoid crowding) */}
             <button
               onClick={() => setShowPrivacyModal(true)}
-              className="p-1.5 rounded-xl text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Pengaturan Privasi & Keamanan Data"
+              className="hidden md:inline-flex p-1.5 rounded-xl text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Privasi & Keamanan"
             >
-              <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             </button>
 
             {/* Dark mode toggle */}
             <button
               id="darkmode-toggle-btn"
               onClick={() => setIsDarkMode((prev) => !prev)}
-              className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-1 sm:p-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Ganti Tema Gelap / Terang"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
 
             {/* Notification Bell */}
             <button
               id="notification-bell-btn"
               onClick={onOpenNotifications}
-              className="relative p-1.5 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="relative p-1 sm:p-1.5 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Notifikasi"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-3.5 h-3.5" />
               {unreadNotifsCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute top-0 right-0 min-w-[14px] h-[14px] px-0.5 rounded-full bg-rose-500 text-white text-[8px] font-bold flex items-center justify-center">
                   {unreadNotifsCount}
                 </span>
               )}
             </button>
 
-            {/* Profile Avatar / Auth modal */}
+            {/* Profile Avatar */}
             <button
               id="header-user-avatar-btn"
               onClick={onOpenAuth}
-              className="flex items-center gap-1.5 pl-0.5 pr-1 py-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="flex items-center pl-0.5 rounded-full hover:ring-2 hover:ring-indigo-400 transition-all shrink-0 cursor-pointer"
               title="Akun & Profil"
             >
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.name}
-                className="w-7 h-7 rounded-full object-cover border border-slate-300 dark:border-slate-600"
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-slate-300 dark:border-slate-600"
               />
             </button>
           </div>
@@ -450,12 +418,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
         </div>
       )}
 
-      {/* Supabase Database & Migration Modal */}
-      <SupabaseModal
-        isOpen={showSupabaseModal}
-        onClose={() => setShowSupabaseModal(false)}
-        onSyncNow={syncWithSupabase}
-      />
+
 
       {/* Gamification & Badges Modal */}
       <GamificationModal

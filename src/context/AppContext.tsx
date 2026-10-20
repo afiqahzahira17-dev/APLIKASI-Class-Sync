@@ -68,6 +68,7 @@ interface AppContextType {
   // Assignments
   assignments: Assignment[];
   addAssignment: (item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>) => void;
+  updateAssignment: (id: string, updated: Partial<Assignment>) => void;
   deleteAssignment: (id: string) => void;
 
   // Submissions & Verification
@@ -75,7 +76,8 @@ interface AppContextType {
   submitAssignment: (
     assignmentId: string,
     file: { name: string; size: string; type: string; dataUrl?: string },
-    studentNote?: string
+    studentNote?: string,
+    attendanceNum?: number
   ) => void;
   gradeSubmission: (submissionId: string, grade: number, feedback: string) => void;
   verifySubmission: (
@@ -203,7 +205,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return INITIAL_SCHEDULES;
     try {
       const parsed: ScheduleItem[] = JSON.parse(saved);
-      return parsed.filter((s) => !s.subjectName.toLowerCase().includes('upacara'));
+      return parsed.filter(
+        (s) => !s.subjectName.toLowerCase().includes('upacara') && s.dayOfWeek !== 7
+      );
     } catch {
       return INITIAL_SCHEDULES;
     }
@@ -552,7 +556,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : activeClass.teacherName || 'Bpk. Hendra S.Pd',
       teacherPhone: currentUser.phone || activeClass.teacherPhone || '081234567890',
       isTeacherVerified: true,
-      dayOfWeek: info.dayOfWeek,
+      dayOfWeek: info.dayOfWeek === 7 ? 1 : info.dayOfWeek,
       startTime: startStr,
       endTime: endStr,
       roomLocation: 'Ruang 7-A (Lantai 1)',
@@ -711,8 +715,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addScheduleItem = (item: Omit<ScheduleItem, 'id'>) => {
+    const safeDay = Math.min(6, Math.max(1, item.dayOfWeek === 7 ? 1 : item.dayOfWeek));
     const newItem: ScheduleItem = {
       ...item,
+      dayOfWeek: safeDay,
       id: `sch-${Date.now()}`,
     };
     setSchedules((prev) => [...prev, newItem]);
@@ -782,6 +788,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications((prev) => [broadcastNotif, ...prev]);
   };
 
+  const updateAssignment = (id: string, updated: Partial<Assignment>) => {
+    if (currentUser.role !== 'teacher') {
+      alert('Siswa tidak dapat mengedit tugas. Hanya akun guru yang dapat mengedit tugas.');
+      return;
+    }
+    setAssignments((prev) =>
+      prev.map((a) => {
+        if (a.id === id) {
+          const merged = { ...a, ...updated };
+          safeSupabaseCall(supabase.from('assignments').upsert(mapAssignmentToDb(merged)));
+          return merged;
+        }
+        return a;
+      })
+    );
+  };
+
   const deleteAssignment = (id: string) => {
     if (currentUser.role !== 'teacher') {
       alert('Siswa tidak dapat menghapus tugas.');
@@ -796,7 +819,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const submitAssignment = (
     assignmentId: string,
     file: { name: string; size: string; type: string; dataUrl?: string },
-    studentNote?: string
+    studentNote?: string,
+    attendanceNum?: number
   ) => {
     if (currentUser.role !== 'student') {
       alert('Akun guru tidak dapat mengumpulkan tugas. Form pengumpulan khusus untuk siswa.');
@@ -806,6 +830,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetAssignment = assignments.find((a) => a.id === assignmentId);
     const now = new Date();
     const isLate = targetAssignment ? now > new Date(targetAssignment.dueDate) : false;
+    const finalAttendance = attendanceNum !== undefined ? attendanceNum : (currentUser.attendanceNumber || 1);
+
+    // Update currentUser attendanceNumber if provided
+    if (attendanceNum !== undefined && attendanceNum !== currentUser.attendanceNumber) {
+      setCurrentUser((prev) => ({ ...prev, attendanceNumber: attendanceNum }));
+    }
 
     // Check if already submitted, then update or create
     const existingIndex = submissions.findIndex(
@@ -818,6 +848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentId: currentUser.id,
       studentName: currentUser.name,
       studentAvatar: currentUser.avatarUrl,
+      attendanceNumber: finalAttendance,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
@@ -1140,6 +1171,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteScheduleItem,
         assignments,
         addAssignment,
+        updateAssignment,
         deleteAssignment,
         submissions,
         submitAssignment,

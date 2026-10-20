@@ -33,6 +33,7 @@ import {
   ExternalLink,
   RotateCcw,
   Zap,
+  Sun,
 } from 'lucide-react';
 
 interface ScheduleViewProps {
@@ -87,10 +88,10 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     { id: 4, label: 'Kamis', short: 'Kam' },
     { id: 5, label: 'Jumat', short: 'Jum' },
     { id: 6, label: 'Sabtu', short: 'Sab' },
-    { id: 7, label: 'Minggu', short: 'Min' },
   ];
 
   const effectiveDay = isRealTimeWita ? witaTimeInfo.dayOfWeek : simulatedDay;
+  const isSundayToday = effectiveDay === 7;
   const effectiveMinutes = isRealTimeWita
     ? witaTimeInfo.totalMinutes
     : timeToMinutes(simulatedTime);
@@ -104,10 +105,10 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
   }, [schedules, activeClass, selectedDay]);
 
-  // Automatically select today's day when real-time WITA is active
+  // Automatically select today's day when real-time WITA is active (default Monday if Sunday)
   React.useEffect(() => {
     if (isRealTimeWita) {
-      setSelectedDay(witaTimeInfo.dayOfWeek);
+      setSelectedDay(witaTimeInfo.dayOfWeek === 7 ? 1 : witaTimeInfo.dayOfWeek);
     }
   }, [isRealTimeWita, witaTimeInfo.dayOfWeek]);
 
@@ -168,6 +169,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     setRoomLocation(item.roomLocation);
     setColorTheme(item.colorTheme || 'blue');
     setNotes(item.notes || '');
+    setSelectedDay(item.dayOfWeek === 7 ? 1 : item.dayOfWeek);
     setShowAddModal(true);
   };
 
@@ -175,8 +177,10 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     e.preventDefault();
     if (!activeClass || !subjectName.trim() || !roomLocation.trim()) return;
 
+    const safeDay = Math.min(6, Math.max(1, selectedDay === 7 ? 1 : selectedDay));
     if (editingItem) {
       updateScheduleItem(editingItem.id, {
+        dayOfWeek: safeDay,
         subjectName,
         teacherName,
         startTime,
@@ -188,7 +192,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     } else {
       addScheduleItem({
         classId: activeClass.id,
-        dayOfWeek: selectedDay,
+        dayOfWeek: safeDay,
         subjectName,
         teacherName,
         startTime,
@@ -307,6 +311,36 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
           )}
         </div>
       </div>
+
+      {/* Sunday Holiday Notice */}
+      {isSundayToday && (
+        <div className="rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-300 dark:border-amber-800/80 p-4 text-amber-900 dark:text-amber-200 shadow-xs flex items-center justify-between gap-3 flex-wrap animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold shrink-0">
+              <Sun className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                  Hari Minggu — Libur KBM Madrasah
+                </span>
+                <span className="text-[10px] bg-amber-200/60 dark:bg-amber-900/60 px-2 py-0.5 rounded-full font-semibold">
+                  KBM Aktif: Senin - Sabtu
+                </span>
+              </div>
+              <p className="text-xs text-amber-800/90 dark:text-amber-300/90 mt-0.5">
+                Kegiatan Belajar Mengajar tidak dijadwalkan pada hari Minggu. Jadwal hari Senin dimuat secara otomatis untuk persiapan belajar esok hari.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSelectedDay(1)}
+            className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-2xs ml-auto"
+          >
+            Buka Jadwal Senin →
+          </button>
+        </div>
+      )}
 
       {/* Top Banner: Sedang Berlangsung Hari Ini di WITA */}
       {liveClassToday ? (
@@ -550,7 +584,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
             <div className="grid grid-cols-6 gap-1">
               {days.map((d) => {
                 const isSelected = selectedDay === d.id;
-                const isToday = simulatedDay === d.id;
+                const isToday = effectiveDay === d.id;
                 return (
                   <button
                     key={d.id}
@@ -586,7 +620,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {days.find((d) => d.id === selectedDay)?.label}
               </span>
-              {selectedDay === simulatedDay && (
+              {selectedDay === effectiveDay && (
                 <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <Radio className="w-3 h-3 animate-pulse" /> Hari Ini
                 </span>
@@ -854,6 +888,28 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
                 />
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Hari KBM (Senin - Sabtu) *
+                </label>
+                <div className="grid grid-cols-6 gap-1">
+                  {days.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedDay(d.id)}
+                      className={`py-1.5 px-1 text-center text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                        selectedDay === d.id
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                          : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {d.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                   Waktu KBM (WITA)
@@ -864,7 +920,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
                     const nowM = witaTimeInfo.totalMinutes;
                     setStartTime(witaTimeInfo.formattedTime);
                     setEndTime(minutesToTimeString(nowM + 90));
-                    setSelectedDay(witaTimeInfo.dayOfWeek);
+                    setSelectedDay(witaTimeInfo.dayOfWeek === 7 ? 1 : witaTimeInfo.dayOfWeek);
                   }}
                   className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
                 >
