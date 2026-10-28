@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   GraduationCap,
   X,
+  LogOut,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -14,13 +15,14 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, allDemoUsers, loginAsUser, registerUser } = useApp();
+  const { currentUser, allDemoUsers, allClasses, loginAsUser, registerUser, logout } = useApp();
 
   const [authMode, setAuthMode] = useState<'switch_demo' | 'register'>('switch_demo');
 
   // Register form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('123');
   const [role, setRole] = useState<UserRole>('student');
   const [identifierNumber, setIdentifierNumber] = useState('');
 
@@ -35,7 +37,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
-    registerUser(name.trim(), email.trim(), role, identifierNumber.trim() || '0071239999');
+    registerUser(
+      name.trim(),
+      email.trim(),
+      role,
+      identifierNumber.trim() || '0071239999',
+      password.trim() || '123'
+    );
     onClose();
   };
 
@@ -94,6 +102,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 const isSelected = user.id === currentUser.id;
                 const fallbackAvatar =
                   user.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
+                const userClassCount = allClasses.filter(
+                  (c) =>
+                    (user.role === 'teacher' && c.teacherId === user.id) ||
+                    (user.joinedClassIds || []).includes(c.id)
+                ).length;
                 return (
                   <button
                     key={user.id}
@@ -140,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             isSelected ? 'text-[#B8D0D8]' : 'text-[#6E828A] dark:text-[#96B2BC]'
                           }`}
                         >
-                          {user.identifierNumber} • {user.email}
+                          {user.identifierNumber} · {userClassCount} Kelas
                         </p>
                       </div>
                     </div>
@@ -153,6 +166,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="pt-3 border-t border-[#E8ECEE] dark:border-[#214B59]">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  logout();
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-800/70 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-xs font-extrabold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar ke Halaman Login Utama</span>
+              </button>
             </div>
           </div>
         ) : (
@@ -221,6 +248,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 placeholder="user@sekolah.sch.id"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
+                Kata Sandi Akun *
+              </label>
+              <input
+                type="password"
+                required
+                minLength={3}
+                placeholder="Minimal 3 karakter"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
               />
             </div>

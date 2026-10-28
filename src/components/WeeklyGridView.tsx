@@ -18,6 +18,8 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
 }) => {
   const {
     activeClass,
+    classes,
+    isAllClassesView,
     schedules,
     simulatedDay,
     simulatedTime,
@@ -46,10 +48,17 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     ? witaTimeInfo.totalMinutes
     : timeToMinutes(simulatedTime);
 
+  const classMap = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes]);
+  const enrolledClassIds = useMemo(() => new Set(classes.map((c) => c.id)), [classes]);
+  const isCombinedMultiClass = isAllClassesView && classes.length >= 2;
+
   const classSchedules = useMemo(() => {
     if (!activeClass) return [];
+    if (isCombinedMultiClass) {
+      return schedules.filter((s) => enrolledClassIds.has(s.classId));
+    }
     return schedules.filter((s) => s.classId === activeClass.id);
-  }, [schedules, activeClass]);
+  }, [schedules, activeClass, isCombinedMultiClass, enrolledClassIds]);
 
   const schedulesByDay = useMemo(() => {
     const map: Record<number, ScheduleItem[]> = {
@@ -217,6 +226,16 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
                             <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold text-[9px]">
                               <AlertTriangle className="w-2.5 h-2.5" />
                               Bentrok
+                            </span>
+                          )}
+
+                          {classes.length >= 2 && classMap.get(item.classId) && (
+                            <span
+                              className={`block text-[10px] font-bold mb-0.5 ${
+                                isLive ? 'text-[#FCEADE]' : 'text-[#E59638]'
+                              }`}
+                            >
+                              {classMap.get(item.classId)?.name}
                             </span>
                           )}
 

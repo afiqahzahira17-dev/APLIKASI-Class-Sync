@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   User,
+  UserRole,
   ClassRoom,
   ScheduleItem,
   Assignment,
@@ -19,7 +20,6 @@ import {
   INITIAL_STUDENT,
   AVATAR_STUDENT_SVG,
   AVATAR_TEACHER_SVG,
-  DEMO_STUDENTS,
   INITIAL_CLASSES,
   INITIAL_SCHEDULES,
   INITIAL_ASSIGNMENTS,
@@ -42,23 +42,73 @@ import {
   mapAnnouncementToDb,
 } from '../lib/supabase';
 
+export interface RegisterAccountInput {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  identifierNumber: string;
+  schoolName?: string;
+  attendanceNumber?: number;
+  phone?: string;
+  classCodesToJoin?: string[];
+  initialClassesToCreate?: { name: string; gradeLevel: string; description?: string }[];
+}
+
+export interface MultiJoinResult {
+  success: boolean;
+  joinedClasses: ClassRoom[];
+  alreadyJoinedNames: string[];
+  notFoundCodes: string[];
+  message: string;
+}
+
 interface AppContextType {
-  // Auth & User
+  // Authentication & Accounts
+  isAuthenticated: boolean;
   currentUser: User;
+  registeredUsers: User[];
   setCurrentUser: (user: User) => void;
+  loginWithCredentials: (
+    identifier: string,
+    password: string,
+    role: UserRole
+  ) => { success: boolean; message: string };
+  quickLoginAccount: (userId: string) => void;
+  registerAccount: (input: RegisterAccountInput) => {
+    success: boolean;
+    message: string;
+    joinedCount?: number;
+    notFoundCodes?: string[];
+  };
+  logout: () => void;
   switchRole: () => void;
   allDemoUsers: User[];
   loginAsUser: (userId: string) => void;
-  registerUser: (name: string, email: string, role: 'student' | 'teacher', idNum: string) => void;
+  registerUser: (
+    name: string,
+    email: string,
+    role: 'student' | 'teacher',
+    idNum: string,
+    password?: string
+  ) => void;
 
-  // Classes
-  classes: ClassRoom[];
+  // Classes & Multi-Class Support (2+ Classes)
+  classes: ClassRoom[]; // Kelas yang diikuti / diampu oleh pengguna saat ini
+  allClasses: ClassRoom[]; // Seluruh kelas terdaftar di sistem sekolah
   activeClass: ClassRoom | null;
   setActiveClass: (cls: ClassRoom) => void;
+  isAllClassesView: boolean;
+  setIsAllClassesView: (val: boolean) => void;
   createClass: (name: string, gradeLevel: string, description: string) => ClassRoom;
+  createMultipleClasses: (
+    items: { name: string; gradeLevel: string; description: string }[]
+  ) => ClassRoom[];
   deleteClass: (classId: string) => void;
+  leaveClass: (classId: string) => void;
   clearAllClasses: () => void;
   joinClassByCode: (code: string) => { success: boolean; message: string };
+  joinMultipleClassesByCodes: (codes: string[]) => MultiJoinResult;
 
   // Schedules
   schedules: ScheduleItem[];
@@ -69,7 +119,10 @@ interface AppContextType {
 
   // Assignments
   assignments: Assignment[];
-  addAssignment: (item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>) => void;
+  addAssignment: (
+    item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>,
+    targetClassIds?: string[]
+  ) => void;
   updateAssignment: (id: string, updated: Partial<Assignment>) => void;
   deleteAssignment: (id: string) => void;
 
@@ -90,7 +143,10 @@ interface AppContextType {
   ) => void;
 
   // Teacher Phone & Verification
-  updateTeacherPhone: (phone: string, verificationPin: string) => { success: boolean; message: string };
+  updateTeacherPhone: (
+    phone: string,
+    verificationPin: string
+  ) => { success: boolean; message: string };
 
   // Announcements & Agenda
   announcements: Announcement[];
@@ -101,7 +157,8 @@ interface AppContextType {
     isNonKbmAgenda: boolean,
     location?: string,
     eventDate?: string,
-    eventTime?: string
+    eventTime?: string,
+    targetClassIds?: string[]
   ) => void;
   deleteAnnouncement: (id: string) => void;
   toggleLikeAnnouncement: (id: string) => void;
@@ -110,43 +167,46 @@ interface AppContextType {
   notifications: AppNotification[];
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
-  triggerSimulatedNotification: (type: 'class_reminder' | 'assignment_reminder' | 'new_announcement') => void;
+  triggerSimulatedNotification: (
+    type: 'class_reminder' | 'assignment_reminder' | 'new_announcement'
+  ) => void;
 
   // Preferences, WITA Real-time & Simulation
   witaTimeInfo: WitaTimeInfo;
   isRealTimeWita: boolean;
   setIsRealTimeWita: (val: boolean) => void;
   syncToCurrentWitaTime: () => void;
-  simulatedDay: number; // 1 = Senin, 2 = Selasa, ...
+  simulatedDay: number;
   setSimulatedDay: (day: number) => void;
-  simulatedTime: string; // "HH:mm"
+  simulatedTime: string;
   setSimulatedTime: (time: string) => void;
   isSimulatingLiveTime: boolean;
   setIsSimulatingLiveTime: (val: boolean) => void;
   activeLiveClass: ScheduleItem | null;
   createLiveScheduleNow: (subjectName?: string) => void;
-
-  // Display Settings
   isDarkMode: boolean;
-  setIsDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
+  setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
   isMobileDeviceFrame: boolean;
-  setIsMobileDeviceFrame: (val: boolean | ((prev: boolean) => boolean)) => void;
+  setIsMobileDeviceFrame: React.Dispatch<React.SetStateAction<boolean>>;
   activeTab: 'jadwal' | 'tugas' | 'agenda' | 'kelas';
   setActiveTab: (tab: 'jadwal' | 'tugas' | 'agenda' | 'kelas') => void;
 
-  // Supabase Database Integration
+  // Supabase Realtime & Database Sync
   isSupabaseConnected: boolean;
   isSupabaseSyncing: boolean;
   syncWithSupabase: () => Promise<void>;
 
-  // Privacy & Data Security
+  // Gamification & Privacy Settings
   privacySettings: PrivacySettings;
-  updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
-
-  // Gamification & Badges
+  updatePrivacySettings: (partial: Partial<PrivacySettings>) => void;
   userXp: number;
   userBadges: UserBadge[];
-  userLevel: { level: number; title: string; nextXp: number; prevXp: number };
+  userLevel: {
+    level: number;
+    title: string;
+    nextXp: number;
+    prevXp: number;
+  };
   xpBreakdown: XpBreakdown;
   expiredUnsubmittedAssignments: Assignment[];
   lastXpGainNotice: { amount: number; reason: string; timestamp: number } | null;
@@ -155,31 +215,30 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const normalizeAvatar = (user: User): User => {
+  const avatar =
+    !user.avatarUrl || user.avatarUrl.includes('unsplash.com')
+      ? user.role === 'teacher'
+        ? AVATAR_TEACHER_SVG
+        : AVATAR_STUDENT_SVG
+      : user.avatarUrl;
+  return {
+    ...user,
+    avatarUrl: avatar,
+    password: user.password || '123',
+  };
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const DATA_VERSION = 'v5_clean_no_sample_data';
 
-  // Load or initialize state from localStorage
-  const [currentUser, setCurrentUserState] = useState<User>(() => {
-    const version = localStorage.getItem('classsync_version');
-    const saved = localStorage.getItem('classsync_user');
-    if (version !== DATA_VERSION || !saved) {
-      return INITIAL_STUDENT;
-    }
-    try {
-      const parsed: User = JSON.parse(saved);
-      if (parsed.name.includes('Ahmad Fauzi') || parsed.name.includes('Fathir')) {
-        return INITIAL_STUDENT;
-      }
-      if (!parsed.avatarUrl || parsed.avatarUrl.includes('unsplash.com')) {
-        parsed.avatarUrl = parsed.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
-      }
-      return parsed;
-    } catch {
-      return INITIAL_STUDENT;
-    }
+  // Dedicated Login Session Gate: tidak langsung masuk sebelum login
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('classsync_auth_active') === 'true';
   });
 
-  const [classes, setClasses] = useState<ClassRoom[]>(() => {
+  // Load all school classes first so user migration can link pre-existing classes
+  const [allClasses, setAllClasses] = useState<ClassRoom[]>(() => {
     const version = localStorage.getItem('classsync_version');
     if (version !== DATA_VERSION) {
       const defaultActiveId = INITIAL_CLASSES.length > 0 ? INITIAL_CLASSES[0].id : '';
@@ -189,17 +248,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return INITIAL_CLASSES;
     }
     const saved = localStorage.getItem('classsync_classes');
-    return saved ? JSON.parse(saved) : INITIAL_CLASSES;
+    if (!saved) return INITIAL_CLASSES;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return INITIAL_CLASSES;
+    }
+  });
+
+  // Registered accounts store (Guru & Siswa)
+  const [registeredUsers, setRegisteredUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('classsync_registered_users');
+    const existingIds = allClasses.map((c) => c.id);
+
+    const seedDefaults: User[] = [
+      normalizeAvatar({
+        ...INITIAL_TEACHER,
+        joinedClassIds: existingIds,
+      }),
+      normalizeAvatar({
+        ...INITIAL_STUDENT,
+        joinedClassIds: existingIds,
+      }),
+    ];
+
+    if (!saved) {
+      return seedDefaults;
+    }
+
+    try {
+      const parsed: User[] = JSON.parse(saved).map(normalizeAvatar);
+      const merged = [...parsed];
+      for (const def of seedDefaults) {
+        if (!merged.some((u) => u.id === def.id)) {
+          merged.push(def);
+        }
+      }
+      return merged;
+    } catch {
+      return seedDefaults;
+    }
+  });
+
+  // Current active user
+  const [currentUser, setCurrentUserState] = useState<User>(() => {
+    const version = localStorage.getItem('classsync_version');
+    const saved = localStorage.getItem('classsync_user');
+    const existingIds = allClasses.map((c) => c.id);
+
+    if (version !== DATA_VERSION || !saved) {
+      return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+    }
+    try {
+      const parsed: User = normalizeAvatar(JSON.parse(saved));
+      if (parsed.name.includes('Ahmad Fauzi') || parsed.name.includes('Fathir')) {
+        return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+      }
+      if (parsed.joinedClassIds === undefined) {
+        parsed.joinedClassIds = existingIds;
+      }
+      return parsed;
+    } catch {
+      return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+    }
   });
 
   const [activeClassId, setActiveClassId] = useState<string>(() => {
-    const version = localStorage.getItem('classsync_version');
-    if (version !== DATA_VERSION) {
-      return INITIAL_CLASSES.length > 0 ? INITIAL_CLASSES[0].id : '';
-    }
     const saved = localStorage.getItem('classsync_active_class_id');
-    return saved || (INITIAL_CLASSES.length > 0 ? INITIAL_CLASSES[0].id : '');
+    return saved || (allClasses.length > 0 ? allClasses[0].id : '');
   });
+
+  const [isAllClassesView, setIsAllClassesViewState] = useState<boolean>(false);
 
   const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
     const version = localStorage.getItem('classsync_version');
@@ -260,6 +379,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
   });
 
+  // Derive classes enrolled / taught by currentUser (supports 2+ classes per account)
+  const classes = useMemo(() => {
+    const joinedSet = new Set(currentUser.joinedClassIds || []);
+    return allClasses.filter((cls) => {
+      if (currentUser.role === 'teacher' && cls.teacherId === currentUser.id) {
+        return true;
+      }
+      if (joinedSet.has(cls.id)) {
+        return true;
+      }
+      if ((cls.memberIds || []).includes(currentUser.id)) {
+        return true;
+      }
+      return false;
+    });
+  }, [allClasses, currentUser.id, currentUser.role, currentUser.joinedClassIds]);
+
+  // Ensure activeClassId points to one of the user's enrolled classes
+  useEffect(() => {
+    if (classes.length === 0) {
+      if (activeClassId !== '') setActiveClassId('');
+      if (isAllClassesView) setIsAllClassesViewState(false);
+    } else {
+      if (!classes.some((c) => c.id === activeClassId)) {
+        setActiveClassId(classes[0].id);
+      }
+      if (classes.length < 2 && isAllClassesView) {
+        setIsAllClassesViewState(false);
+      }
+    }
+  }, [classes, activeClassId, isAllClassesView]);
+
+  const setIsAllClassesView = (val: boolean) => {
+    if (val && classes.length >= 2) {
+      setIsAllClassesViewState(true);
+    } else {
+      setIsAllClassesViewState(false);
+    }
+  };
+
+  // Sync currentUser changes back into registeredUsers array
+  useEffect(() => {
+    localStorage.setItem('classsync_user', JSON.stringify(currentUser));
+    setRegisteredUsers((prev) => {
+      const exists = prev.some((u) => u.id === currentUser.id);
+      if (!exists) {
+        return [currentUser, ...prev];
+      }
+      return prev.map((u) => (u.id === currentUser.id ? { ...u, ...currentUser } : u));
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('classsync_registered_users', JSON.stringify(registeredUsers));
+  }, [registeredUsers]);
+
+  useEffect(() => {
+    localStorage.setItem('classsync_auth_active', isAuthenticated ? 'true' : 'false');
+  }, [isAuthenticated]);
+
   // Waktu Indonesia Tengah (WITA, UTC+8) Realtime & Simulation state
   const initialWita = getWitaNow();
   const [witaTimeInfo, setWitaTimeInfo] = useState<WitaTimeInfo>(initialWita);
@@ -268,7 +447,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [simulatedTime, setSimulatedTime] = useState<string>(initialWita.formattedTime);
   const [isSimulatingLiveTime, setIsSimulatingLiveTime] = useState<boolean>(true);
 
-  // Interval real-time sinkronisasi Waktu Indonesia Tengah (WITA)
   useEffect(() => {
     const tick = () => {
       const info = getWitaNow();
@@ -347,7 +525,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
   const [isSupabaseSyncing, setIsSupabaseSyncing] = useState<boolean>(false);
 
-  // Sync with Supabase (push and pull)
   const syncWithSupabase = async () => {
     setIsSupabaseSyncing(true);
     try {
@@ -357,10 +534,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsSupabaseConnected(true);
         if (dbClasses.length > 0) {
           const mapped = dbClasses.map(mapClassFromDb);
-          setClasses(mapped);
-          setActiveClassId((prev) => (mapped.some((c) => c.id === prev) ? prev : mapped[0].id));
-        } else if (classes.length > 0) {
-          for (const c of classes) {
+          setAllClasses((prev) => {
+            const byId = new Map<string, ClassRoom>();
+            prev.forEach((c) => byId.set(c.id, c));
+            mapped.forEach((c) => {
+              const local = byId.get(c.id);
+              byId.set(c.id, { ...c, memberIds: local?.memberIds || c.memberIds });
+            });
+            return Array.from(byId.values());
+          });
+        } else if (allClasses.length > 0) {
+          for (const c of allClasses) {
             await supabase.from('classes').upsert(mapClassToDb(c));
           }
         }
@@ -373,7 +557,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSchedules(
             dbSchedules
               .map(mapScheduleFromDb)
-              .filter((s) => !s.subjectName.toLowerCase().includes('upacara'))
+              .filter(
+                (s) => !s.subjectName.toLowerCase().includes('upacara') && s.dayOfWeek !== 7
+              )
           );
         } else if (schedules.length > 0) {
           for (const s of schedules) {
@@ -407,7 +593,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 5. Announcements
-      const { data: dbAnnouncements, error: annErr } = await supabase.from('announcements').select('*');
+      const { data: dbAnnouncements, error: annErr } = await supabase
+        .from('announcements')
+        .select('*');
       if (!annErr && dbAnnouncements) {
         if (dbAnnouncements.length > 0) {
           setAnnouncements(
@@ -422,17 +610,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     } catch (err) {
-      console.warn('Supabase sync skipped (waiting for table migration):', err);
+      console.warn('Supabase sync skipped:', err);
     } finally {
       setIsSupabaseSyncing(false);
     }
   };
 
-  // Initial Supabase connection check, cleanup of upacara items, & realtime sync
   useEffect(() => {
-    // Purge any upacara items from state and database
     setAnnouncements((prev) => prev.filter((a) => !a.title.toLowerCase().includes('upacara')));
-    setSchedules((prev) => prev.filter((s) => !s.subjectName.toLowerCase().includes('upacara')));
+    setSchedules((prev) =>
+      prev.filter((s) => !s.subjectName.toLowerCase().includes('upacara') && s.dayOfWeek !== 7)
+    );
     safeSupabaseCall(supabase.from('announcements').delete().ilike('title', '%upacara%'));
     safeSupabaseCall(supabase.from('schedules').delete().ilike('subject_name', '%upacara%'));
 
@@ -442,11 +630,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .channel('supabase-live-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, async () => {
         const { data } = await supabase.from('classes').select('*');
-        if (data) setClasses(data.map(mapClassFromDb));
+        if (data) {
+          const mapped = data.map(mapClassFromDb);
+          setAllClasses((prev) => {
+            const byId = new Map<string, ClassRoom>();
+            prev.forEach((c) => byId.set(c.id, c));
+            mapped.forEach((c) => {
+              const local = byId.get(c.id);
+              byId.set(c.id, { ...c, memberIds: local?.memberIds || c.memberIds });
+            });
+            return Array.from(byId.values());
+          });
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, async () => {
         const { data } = await supabase.from('schedules').select('*');
-        if (data) setSchedules(data.map(mapScheduleFromDb).filter((s) => !s.subjectName.toLowerCase().includes('upacara')));
+        if (data)
+          setSchedules(
+            data
+              .map(mapScheduleFromDb)
+              .filter((s) => !s.subjectName.toLowerCase().includes('upacara') && s.dayOfWeek !== 7)
+          );
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'assignments' }, async () => {
         const { data } = await supabase.from('assignments').select('*');
@@ -456,10 +660,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const { data } = await supabase.from('submissions').select('*');
         if (data) setSubmissions(data.map(mapSubmissionFromDb));
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, async () => {
-        const { data } = await supabase.from('announcements').select('*');
-        if (data) setAnnouncements(data.map(mapAnnouncementFromDb).filter((a) => !a.title.toLowerCase().includes('upacara')));
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'announcements' },
+        async () => {
+          const { data } = await supabase.from('announcements').select('*');
+          if (data)
+            setAnnouncements(
+              data
+                .map(mapAnnouncementFromDb)
+                .filter((a) => !a.title.toLowerCase().includes('upacara'))
+            );
+        }
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setIsSupabaseConnected(true);
@@ -473,12 +686,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Persistence effects
   useEffect(() => {
-    localStorage.setItem('classsync_user', JSON.stringify(currentUser));
-  }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem('classsync_classes', JSON.stringify(classes));
-  }, [classes]);
+    localStorage.setItem('classsync_classes', JSON.stringify(allClasses));
+  }, [allClasses]);
 
   useEffect(() => {
     localStorage.setItem('classsync_active_class_id', activeClassId);
@@ -504,7 +713,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('classsync_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
-  // Handle dark mode class on document
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -513,16 +721,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isDarkMode]);
 
-  const activeClass = classes.find((c) => c.id === activeClassId) || (classes.length > 0 ? classes[0] : null);
+  const activeClass =
+    classes.find((c) => c.id === activeClassId) || (classes.length > 0 ? classes[0] : null);
 
-  // Kelas yang sedang berlangsung (Live) terhubung dengan Waktu Nyata WITA
+  // Live class across activeClass or across all enrolled classes when in combined view
   const activeLiveClass = useMemo(() => {
-    if (!activeClass) return null;
+    const enrolledIds = new Set(classes.map((c) => c.id));
+    if (enrolledIds.size === 0) return null;
     const currentDay = isRealTimeWita ? witaTimeInfo.dayOfWeek : simulatedDay;
     const currentMinutes = isRealTimeWita ? witaTimeInfo.totalMinutes : timeToMinutes(simulatedTime);
+
     return (
       schedules
-        .filter((s) => s.classId === activeClass.id && s.dayOfWeek === currentDay)
+        .filter((s) => {
+          if (isAllClassesView) return enrolledIds.has(s.classId) && s.dayOfWeek === currentDay;
+          return activeClass ? s.classId === activeClass.id && s.dayOfWeek === currentDay : false;
+        })
         .find((s) => {
           const startMin = timeToMinutes(s.startTime);
           const endMin = timeToMinutes(s.endTime);
@@ -531,7 +745,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   }, [
     schedules,
+    classes,
     activeClass,
+    isAllClassesView,
     isRealTimeWita,
     witaTimeInfo.dayOfWeek,
     witaTimeInfo.totalMinutes,
@@ -540,10 +756,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ]);
 
   const createLiveScheduleNow = (subjectName: string = 'Matematika Terapan') => {
-    if (!activeClass) {
-      alert('Pilih atau buat kelas terlebih dahulu.');
-      return;
-    }
+    if (!activeClass) return;
     const info = getWitaNow();
     const currentM = info.totalMinutes;
     const startM = Math.max(0, currentM - 15);
@@ -558,14 +771,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       teacherName:
         currentUser.role === 'teacher'
           ? currentUser.name
-          : activeClass.teacherName || 'Bpk. Hendra S.Pd',
+          : activeClass.teacherName || 'Guru Pengampu',
       teacherPhone: currentUser.phone || activeClass.teacherPhone || '081234567890',
       isTeacherVerified: true,
       dayOfWeek: info.dayOfWeek === 7 ? 1 : info.dayOfWeek,
       startTime: startStr,
       endTime: endStr,
       roomLocation: 'Ruang 7-A (Lantai 1)',
-      colorTheme: 'emerald',
+      colorTheme: 'amber',
       notes: `Sesi KBM aktif disinkronkan otomatis dengan Waktu Nyata WITA (${info.formattedTime}).`,
     };
 
@@ -575,20 +788,515 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setActiveClass = (cls: ClassRoom) => {
     setActiveClassId(cls.id);
+    setIsAllClassesViewState(false);
+  };
+
+  // --- AUTHENTICATION & ACCOUNT HANDLERS ---
+
+  const loginWithCredentials = (
+    identifier: string,
+    password: string,
+    role: UserRole
+  ): { success: boolean; message: string } => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanDigits = identifier.replace(/[^0-9]/g, '');
+    const cleanPass = password.trim();
+
+    if (!cleanId || !cleanPass) {
+      return {
+        success: false,
+        message: 'Mohon isi email / nomor induk serta kata sandi Anda.',
+      };
+    }
+
+    const candidates = registeredUsers.filter((u) => u.role === role);
+    const matched = candidates.find((u) => {
+      const emailMatch = u.email.trim().toLowerCase() === cleanId;
+      const idStrMatch = u.identifierNumber.trim().toLowerCase() === cleanId;
+      const uDigits = u.identifierNumber.replace(/[^0-9]/g, '');
+      const digitsMatch = cleanDigits.length >= 4 && uDigits === cleanDigits;
+      return emailMatch || idStrMatch || digitsMatch;
+    });
+
+    if (!matched) {
+      const roleLabel = role === 'teacher' ? 'Guru' : 'Siswa';
+      return {
+        success: false,
+        message: `Akun ${roleLabel} dengan email atau nomor induk tersebut tidak ditemukan. Silakan periksa peran atau buat akun baru.`,
+      };
+    }
+
+    const expectedPass = (matched.password || '123').trim();
+    if (expectedPass !== cleanPass) {
+      return {
+        success: false,
+        message: 'Kata sandi yang Anda masukkan belum sesuai. Silakan coba kembali.',
+      };
+    }
+
+    setCurrentUserState(matched);
+    setIsAuthenticated(true);
+    setActiveTab('jadwal');
+    return {
+      success: true,
+      message: `Selamat datang kembali, ${matched.name}!`,
+    };
+  };
+
+  const quickLoginAccount = (userId: string) => {
+    const target = registeredUsers.find((u) => u.id === userId);
+    if (target) {
+      setCurrentUserState(target);
+      setIsAuthenticated(true);
+      setActiveTab('jadwal');
+    }
+  };
+
+  const registerAccount = (
+    input: RegisterAccountInput
+  ): {
+    success: boolean;
+    message: string;
+    joinedCount?: number;
+    notFoundCodes?: string[];
+  } => {
+    const cleanName = input.name.trim();
+    const cleanEmail = input.email.trim().toLowerCase();
+    const cleanPass = input.password.trim();
+    const cleanIdNum = input.identifierNumber.trim();
+
+    if (!cleanName || !cleanEmail || !cleanPass) {
+      return {
+        success: false,
+        message: 'Nama lengkap, email, dan kata sandi wajib diisi.',
+      };
+    }
+
+    if (cleanPass.length < 3) {
+      return {
+        success: false,
+        message: 'Kata sandi minimal terdiri dari 3 karakter.',
+      };
+    }
+
+    const duplicate = registeredUsers.find(
+      (u) => u.email.trim().toLowerCase() === cleanEmail && u.role === input.role
+    );
+    if (duplicate) {
+      return {
+        success: false,
+        message: `Email ${cleanEmail} sudah terdaftar sebagai ${
+          input.role === 'teacher' ? 'Guru' : 'Siswa'
+        }. Silakan masuk pada tab Masuk Akun.`,
+      };
+    }
+
+    const newUserId = `user-${Date.now()}`;
+    const formattedIdNumber = cleanIdNum
+      ? input.role === 'teacher'
+        ? cleanIdNum.toUpperCase().startsWith('NIP')
+          ? cleanIdNum
+          : `NIP. ${cleanIdNum}`
+        : cleanIdNum.toUpperCase().startsWith('NISN')
+        ? cleanIdNum
+        : `NISN. ${cleanIdNum}`
+      : input.role === 'teacher'
+      ? `NIP. 1990${Math.floor(1000 + Math.random() * 9000)}`
+      : `NISN. 009${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const joinedIds = new Set<string>();
+    const notFoundCodes: string[] = [];
+    const createdClassesBatch: ClassRoom[] = [];
+
+    // 1. If Teacher chose to create 1, 2, or more initial classes during registration
+    if (
+      input.role === 'teacher' &&
+      input.initialClassesToCreate &&
+      input.initialClassesToCreate.length > 0
+    ) {
+      input.initialClassesToCreate.forEach((clsSpec, idx) => {
+        if (!clsSpec.name.trim()) return;
+        const cleanClsName = clsSpec.name.trim();
+        const codePrefix = cleanClsName
+          .replace(/[^a-zA-Z0-9]+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 7)
+          .toUpperCase();
+        const randomCode = `${codePrefix || 'KLS'}-${Math.floor(100 + Math.random() * 900)}`;
+        const created: ClassRoom = {
+          id: `class-${Date.now()}-${idx}`,
+          name: cleanClsName,
+          gradeLevel: clsSpec.gradeLevel || 'Kelas 7',
+          code: randomCode,
+          teacherId: newUserId,
+          teacherName: cleanName,
+          teacherPhone: input.phone?.trim(),
+          isTeacherVerified: Boolean(input.phone?.trim()),
+          academicYear: '2026/2027 Ganjil',
+          studentCount: 0,
+          memberIds: [newUserId],
+          description: clsSpec.description?.trim() || `Kelas ${cleanClsName} di ClassyWork`,
+          bannerColor: 'amber',
+        };
+        createdClassesBatch.push(created);
+        joinedIds.add(created.id);
+      });
+    }
+
+    // 2. If Student (or Teacher) entered 1, 2, or more class codes to join immediately
+    const rawCodes = (input.classCodesToJoin || [])
+      .flatMap((c) => c.split(/[,;\s]+/))
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    let updatedExistingClasses = [...allClasses];
+    if (rawCodes.length > 0) {
+      for (const code of rawCodes) {
+        const idx = updatedExistingClasses.findIndex((c) => c.code.toUpperCase() === code);
+        if (idx >= 0) {
+          const target = updatedExistingClasses[idx];
+          joinedIds.add(target.id);
+          const existingMembers = new Set(target.memberIds || []);
+          const alreadyMember = existingMembers.has(newUserId);
+          existingMembers.add(newUserId);
+          updatedExistingClasses[idx] = {
+            ...target,
+            memberIds: Array.from(existingMembers),
+            studentCount:
+              input.role === 'student' && !alreadyMember
+                ? target.studentCount + 1
+                : target.studentCount,
+          };
+        } else {
+          notFoundCodes.push(code);
+        }
+      }
+    }
+
+    const finalAllClasses = [...createdClassesBatch, ...updatedExistingClasses];
+    if (createdClassesBatch.length > 0 || rawCodes.length > 0) {
+      setAllClasses(finalAllClasses);
+      createdClassesBatch.forEach((c) => {
+        safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(c)));
+      });
+    }
+
+    const joinedArray = Array.from(joinedIds);
+    const firstClassName =
+      finalAllClasses.find((c) => joinedIds.has(c.id))?.name || undefined;
+
+    const newUser: User = {
+      id: newUserId,
+      name: cleanName,
+      email: cleanEmail,
+      password: cleanPass,
+      role: input.role,
+      avatarUrl: input.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG,
+      identifierNumber: formattedIdNumber,
+      className: firstClassName,
+      joinedClassIds: joinedArray,
+      schoolName: input.schoolName?.trim() || 'MTs',
+      phone: input.phone?.trim() || undefined,
+      isPhoneVerified: input.role === 'teacher' && Boolean(input.phone?.trim()),
+      attendanceNumber:
+        input.role === 'student' ? Math.max(1, input.attendanceNumber || 1) : undefined,
+    };
+
+    setRegisteredUsers((prev) => [newUser, ...prev]);
+    setCurrentUserState(newUser);
+    if (joinedArray.length > 0) {
+      setActiveClassId(joinedArray[0]);
+    }
+    setIsAuthenticated(true);
+    setActiveTab('jadwal');
+
+    safeSupabaseCall(
+      supabase.from('profiles').upsert({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        avatar_url: newUser.avatarUrl,
+        identifier_number: newUser.identifierNumber,
+        class_name: newUser.className || '',
+        school_name: newUser.schoolName,
+      })
+    );
+
+    return {
+      success: true,
+      message: `Akun ${newUser.name} berhasil dibuat!`,
+      joinedCount: joinedArray.length,
+      notFoundCodes,
+    };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    setIsAllClassesViewState(false);
+    localStorage.setItem('classsync_auth_active', 'false');
+  };
+
+  const switchRole = () => {
+    const targetRole: UserRole = currentUser.role === 'student' ? 'teacher' : 'student';
+    const matchingUser =
+      registeredUsers.find((u) => u.role === targetRole) ||
+      (targetRole === 'teacher' ? INITIAL_TEACHER : INITIAL_STUDENT);
+    setCurrentUserState(matchingUser);
+  };
+
+  const allDemoUsers = registeredUsers;
+
+  const loginAsUser = (userId: string) => {
+    const target = registeredUsers.find((u) => u.id === userId);
+    if (target) {
+      setCurrentUserState(target);
+      setIsAuthenticated(true);
+    }
+  };
+
+  const registerUser = (
+    name: string,
+    email: string,
+    role: 'student' | 'teacher',
+    idNum: string,
+    password: string = '123'
+  ) => {
+    registerAccount({
+      name,
+      email,
+      password,
+      role,
+      identifierNumber: idNum,
+    });
+  };
+
+  // --- MULTI-CLASS MANAGEMENT (2+ CLASSES) ---
+
+  const createMultipleClasses = (
+    items: { name: string; gradeLevel: string; description: string }[]
+  ): ClassRoom[] => {
+    if (currentUser.role !== 'teacher') {
+      return [];
+    }
+    const validItems = items.filter((item) => item.name.trim().length > 0);
+    if (validItems.length === 0) return [];
+
+    const createdList: ClassRoom[] = validItems.map((item, idx) => {
+      const cleanName = item.name.trim();
+      const prefix = cleanName
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 7)
+        .toUpperCase();
+      const randomCode = `${prefix || 'KLS'}-${Math.floor(100 + Math.random() * 900)}`;
+      return {
+        id: `class-${Date.now()}-${idx}`,
+        name: cleanName,
+        gradeLevel: item.gradeLevel || 'Kelas 7',
+        code: randomCode,
+        teacherId: currentUser.id,
+        teacherName: currentUser.name,
+        teacherPhone: currentUser.phone,
+        isTeacherVerified: currentUser.isPhoneVerified,
+        academicYear: '2026/2027 Ganjil',
+        studentCount: 0,
+        memberIds: [currentUser.id],
+        description: item.description.trim() || `Kelas ${cleanName} di ClassyWork`,
+        bannerColor: 'amber',
+      };
+    });
+
+    setAllClasses((prev) => [...createdList, ...prev]);
+    setCurrentUserState((prev) => {
+      const nextIds = Array.from(
+        new Set([...createdList.map((c) => c.id), ...(prev.joinedClassIds || [])])
+      );
+      return { ...prev, joinedClassIds: nextIds };
+    });
+    setActiveClassId(createdList[0].id);
+    setIsAllClassesViewState(false);
+
+    createdList.forEach((cls) => {
+      safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(cls)));
+    });
+
+    const codesText = createdList.map((c) => `${c.name} (${c.code})`).join(', ');
+    const notif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      userId: currentUser.id,
+      title:
+        createdList.length > 1
+          ? `${createdList.length} Kelas Berhasil Dibuat`
+          : 'Kelas Berhasil Dibuat',
+      message: `Kelas terdaftar: ${codesText}. Bagikan kode kelas kepada siswa agar dapat bergabung.`,
+      type: 'announcement',
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    return createdList;
+  };
+
+  const createClass = (name: string, gradeLevel: string, description: string): ClassRoom => {
+    const res = createMultipleClasses([{ name, gradeLevel, description }]);
+    if (res.length === 0) {
+      throw new Error('Hanya akun guru yang dapat membuat kelas baru.');
+    }
+    return res[0];
+  };
+
+  const joinMultipleClassesByCodes = (codes: string[]): MultiJoinResult => {
+    const cleanCodes = Array.from(
+      new Set(
+        codes
+          .flatMap((c) => c.split(/[,;\s]+/))
+          .map((c) => c.trim().toUpperCase())
+          .filter(Boolean)
+      )
+    );
+
+    if (cleanCodes.length === 0) {
+      return {
+        success: false,
+        joinedClasses: [],
+        alreadyJoinedNames: [],
+        notFoundCodes: [],
+        message: 'Masukkan minimal satu kode kelas terlebih dahulu.',
+      };
+    }
+
+    const currentJoinedSet = new Set(currentUser.joinedClassIds || []);
+    const newlyJoined: ClassRoom[] = [];
+    const alreadyJoinedNames: string[] = [];
+    const notFoundCodes: string[] = [];
+
+    const nextAllClasses = allClasses.map((cls) => {
+      if (!cleanCodes.includes(cls.code.toUpperCase())) {
+        return cls;
+      }
+
+      const isAlreadyIn =
+        currentJoinedSet.has(cls.id) ||
+        (currentUser.role === 'teacher' && cls.teacherId === currentUser.id);
+
+      if (isAlreadyIn) {
+        alreadyJoinedNames.push(cls.name);
+        return cls;
+      }
+
+      newlyJoined.push(cls);
+      const updatedMembers = Array.from(new Set([...(cls.memberIds || []), currentUser.id]));
+      const updatedCls: ClassRoom = {
+        ...cls,
+        memberIds: updatedMembers,
+        studentCount:
+          currentUser.role === 'student' ? cls.studentCount + 1 : cls.studentCount,
+      };
+      safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(updatedCls)));
+      return updatedCls;
+    });
+
+    for (const code of cleanCodes) {
+      if (!allClasses.some((c) => c.code.toUpperCase() === code)) {
+        notFoundCodes.push(code);
+      }
+    }
+
+    if (newlyJoined.length > 0) {
+      setAllClasses(nextAllClasses);
+      const addedIds = newlyJoined.map((c) => c.id);
+      setCurrentUserState((prev) => ({
+        ...prev,
+        joinedClassIds: Array.from(new Set([...(prev.joinedClassIds || []), ...addedIds])),
+      }));
+      setActiveClassId(newlyJoined[0].id);
+      setIsAllClassesViewState(false);
+
+      const joinedNames = newlyJoined.map((c) => c.name).join(', ');
+      const notif: AppNotification = {
+        id: `notif-${Date.now()}`,
+        userId: currentUser.id,
+        title:
+          newlyJoined.length > 1
+            ? `Berhasil Bergabung ke ${newlyJoined.length} Kelas`
+            : 'Berhasil Bergabung ke Kelas',
+        message: `Anda kini terdaftar di kelas: ${joinedNames}. Anda dapat berpindah antar kelas kapan saja.`,
+        type: 'announcement',
+        timestamp: new Date().toISOString(),
+        isRead: false,
+      };
+      setNotifications((prev) => [notif, ...prev]);
+    }
+
+    if (newlyJoined.length === 0 && alreadyJoinedNames.length > 0 && notFoundCodes.length === 0) {
+      return {
+        success: true,
+        joinedClasses: [],
+        alreadyJoinedNames,
+        notFoundCodes: [],
+        message: `Anda sudah terdaftar di kelas ${alreadyJoinedNames.join(', ')}.`,
+      };
+    }
+
+    if (newlyJoined.length === 0 && notFoundCodes.length > 0) {
+      return {
+        success: false,
+        joinedClasses: [],
+        alreadyJoinedNames,
+        notFoundCodes,
+        message: `Kode kelas (${notFoundCodes.join(', ')}) tidak ditemukan. Pastikan kode sesuai dengan yang dibagikan guru.`,
+      };
+    }
+
+    let summary = `Berhasil bergabung ke ${newlyJoined.map((c) => c.name).join(', ')}!`;
+    if (alreadyJoinedNames.length > 0) {
+      summary += ` (${alreadyJoinedNames.join(', ')} sudah terdaftar sebelumnya).`;
+    }
+    if (notFoundCodes.length > 0) {
+      summary += ` Kode tidak ditemukan: ${notFoundCodes.join(', ')}.`;
+    }
+
+    return {
+      success: true,
+      joinedClasses: newlyJoined,
+      alreadyJoinedNames,
+      notFoundCodes,
+      message: summary,
+    };
+  };
+
+  const joinClassByCode = (code: string): { success: boolean; message: string } => {
+    const res = joinMultipleClassesByCodes([code]);
+    return { success: res.success, message: res.message };
+  };
+
+  const leaveClass = (classId: string) => {
+    setCurrentUserState((prev) => ({
+      ...prev,
+      joinedClassIds: (prev.joinedClassIds || []).filter((id) => id !== classId),
+    }));
+    setAllClasses((prev) =>
+      prev.map((cls) => {
+        if (cls.id !== classId) return cls;
+        return {
+          ...cls,
+          memberIds: (cls.memberIds || []).filter((id) => id !== currentUser.id),
+          studentCount:
+            currentUser.role === 'student' ? Math.max(0, cls.studentCount - 1) : cls.studentCount,
+        };
+      })
+    );
   };
 
   const deleteClass = (classId: string) => {
-    if (currentUser.role !== 'teacher') {
-      alert('Siswa tidak dapat menghapus kelas. Tindakan ini hanya untuk guru.');
-      return;
-    }
-    setClasses((prev) => {
-      const updated = prev.filter((c) => c.id !== classId);
-      if (activeClassId === classId) {
-        setActiveClassId(updated.length > 0 ? updated[0].id : '');
-      }
-      return updated;
-    });
+    if (currentUser.role !== 'teacher') return;
+    setAllClasses((prev) => prev.filter((c) => c.id !== classId));
+    setCurrentUserState((prev) => ({
+      ...prev,
+      joinedClassIds: (prev.joinedClassIds || []).filter((id) => id !== classId),
+    }));
     setSchedules((prev) => prev.filter((s) => s.classId !== classId));
     setAssignments((prev) => prev.filter((a) => a.classId !== classId));
     setAnnouncements((prev) => prev.filter((a) => a.classId !== classId));
@@ -597,124 +1305,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearAllClasses = () => {
-    if (currentUser.role !== 'teacher') {
-      alert('Siswa tidak dapat menghapus kelas.');
-      return;
-    }
-    classes.forEach((c) => {
-      safeSupabaseCall(supabase.from('classes').delete().eq('id', c.id));
+    if (currentUser.role !== 'teacher') return;
+    const idsToDelete = new Set(classes.map((c) => c.id));
+    idsToDelete.forEach((id) => {
+      safeSupabaseCall(supabase.from('classes').delete().eq('id', id));
     });
-    setClasses([]);
+    setAllClasses((prev) => prev.filter((c) => !idsToDelete.has(c.id)));
+    setCurrentUserState((prev) => ({
+      ...prev,
+      joinedClassIds: [],
+    }));
     setActiveClassId('');
-    setSchedules([]);
-    setAssignments([]);
-    setSubmissions([]);
-    setAnnouncements([]);
+    setSchedules((prev) => prev.filter((s) => !idsToDelete.has(s.classId)));
+    setAssignments((prev) => prev.filter((a) => !idsToDelete.has(a.classId)));
+    setAnnouncements((prev) => prev.filter((a) => !idsToDelete.has(a.classId)));
   };
 
-  const switchRole = () => {
-    if (currentUser.role === 'student') {
-      setCurrentUserState(INITIAL_TEACHER);
-    } else {
-      setCurrentUserState(INITIAL_STUDENT);
-    }
-  };
-
-  const allDemoUsers = [INITIAL_TEACHER, ...DEMO_STUDENTS];
-
-  const loginAsUser = (userId: string) => {
-    const target = allDemoUsers.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUserState(target);
-    }
-  };
-
-  const registerUser = (name: string, email: string, role: 'student' | 'teacher', idNum: string) => {
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role,
-      avatarUrl: role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG,
-      identifierNumber: role === 'teacher' ? `NIP. ${idNum}` : `NISN. ${idNum}`,
-      className: role === 'student' ? activeClass?.name : undefined,
-      schoolName: currentUser.schoolName || 'MTs',
-    };
-    setCurrentUserState(newUser);
-  };
-
-  const createClass = (name: string, gradeLevel: string, description: string): ClassRoom => {
-    if (currentUser.role !== 'teacher') {
-      throw new Error('Siswa tidak memiliki izin membuat kelas baru. Hanya akun guru yang dapat membuat kelas.');
-    }
-    const randomCode = `${name.replace(/\s+/g, '-').slice(0, 7).toUpperCase()}-${Math.floor(
-      100 + Math.random() * 900
-    )}`;
-    const newClass: ClassRoom = {
-      id: `class-${Date.now()}`,
-      name,
-      gradeLevel,
-      code: randomCode,
-      teacherId: currentUser.id,
-      teacherName: currentUser.name,
-      academicYear: '2026/2027 Ganjil',
-      studentCount: 1,
-      description: description || 'Kelas baru di ClassyWork',
-      bannerColor: 'indigo',
-    };
-
-    setClasses((prev) => [newClass, ...prev]);
-    setActiveClassId(newClass.id);
-
-    // Sync to Supabase
-    safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(newClass)));
-
-    // Add notification
-    const notif: AppNotification = {
-      id: `notif-${Date.now()}`,
-      userId: currentUser.id,
-      title: '🎉 Kelas Berhasil Dibuat',
-      message: `Kode kelas Anda: ${randomCode}. Bagikan kepada siswa untuk bergabung.`,
-      type: 'announcement',
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    setNotifications((prev) => [notif, ...prev]);
-
-    return newClass;
-  };
-
-  const joinClassByCode = (code: string): { success: boolean; message: string } => {
-    const cleanCode = code.trim().toUpperCase();
-    const found = classes.find((c) => c.code.toUpperCase() === cleanCode);
-
-    if (found) {
-      setActiveClassId(found.id);
-      // Increment student count
-      setClasses((prev) =>
-        prev.map((c) => (c.id === found.id ? { ...c, studentCount: c.studentCount + 1 } : c))
-      );
-
-      // Notification
-      const notif: AppNotification = {
-        id: `notif-${Date.now()}`,
-        userId: currentUser.id,
-        title: '✅ Berhasil Bergabung ke Kelas',
-        message: `Anda telah terdaftar di kelas ${found.name}. Jadwal dan tugas telah diperbarui.`,
-        type: 'announcement',
-        timestamp: new Date().toISOString(),
-        isRead: false,
-      };
-      setNotifications((prev) => [notif, ...prev]);
-
-      return { success: true, message: `Berhasil bergabung ke ${found.name}!` };
-    }
-
-    return {
-      success: false,
-      message: 'Kode kelas tidak ditemukan. Mohon periksa kembali kode yang diberikan oleh guru.',
-    };
-  };
+  // --- SCHEDULES, ASSIGNMENTS, SUBMISSIONS, ANNOUNCEMENTS ---
 
   const addScheduleItem = (item: Omit<ScheduleItem, 'id'>) => {
     const safeDay = Math.min(6, Math.max(1, item.dayOfWeek === 7 ? 1 : item.dayOfWeek));
@@ -730,6 +1337,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const importScheduleItemsBatch = async (items: Omit<ScheduleItem, 'id'>[]): Promise<number> => {
     const newItems: ScheduleItem[] = items.map((item, idx) => ({
       ...item,
+      dayOfWeek: Math.min(6, Math.max(1, item.dayOfWeek === 7 ? 1 : item.dayOfWeek)),
       id: `sch-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
     }));
 
@@ -759,42 +1367,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addAssignment = (
-    item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>
+    item: Omit<Assignment, 'id' | 'createdBy' | 'createdByName' | 'createdAt'>,
+    targetClassIds?: string[]
   ) => {
-    if (currentUser.role !== 'teacher') {
-      alert('Siswa tidak memiliki izin menerbitkan tugas. Hanya akun guru yang dapat membuat tugas.');
-      return;
-    }
-    const newAssignment: Assignment = {
+    if (currentUser.role !== 'teacher') return;
+
+    const classIdsToPublish =
+      targetClassIds && targetClassIds.length > 0 ? targetClassIds : [item.classId];
+
+    const createdBatch: Assignment[] = classIdsToPublish.map((cid, idx) => ({
       ...item,
-      id: `assign-${Date.now()}`,
+      classId: cid,
+      id: `assign-${Date.now()}-${idx}`,
       createdBy: currentUser.id,
       createdByName: currentUser.name,
       createdAt: new Date().toISOString(),
-      xpPenaltyOverdue: 30, // Pinalti pengurangan XP jika tidak mengumpulkan
-    };
-    setAssignments((prev) => [newAssignment, ...prev]);
-    safeSupabaseCall(supabase.from('assignments').upsert(mapAssignmentToDb(newAssignment)));
+      xpPenaltyOverdue: 30,
+    }));
 
-    // Broadcast push notification to students
+    setAssignments((prev) => [...createdBatch, ...prev]);
+    createdBatch.forEach((a) => {
+      safeSupabaseCall(supabase.from('assignments').upsert(mapAssignmentToDb(a)));
+    });
+
     const broadcastNotif: AppNotification = {
       id: `notif-${Date.now()}`,
       userId: 'student-all',
-      title: '📝 Tugas Baru Diterbitkan',
-      message: `${currentUser.name} mempublikasikan tugas "${item.title}" (${item.subjectName}). Tenggat: ${new Date(item.dueDate).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}.`,
+      title: 'Tugas Baru Diterbitkan',
+      message: `${currentUser.name} mempublikasikan tugas "${item.title}" (${item.subjectName})${
+        classIdsToPublish.length > 1 ? ` ke ${classIdsToPublish.length} kelas` : ''
+      }.`,
       type: 'new_assignment',
       timestamp: new Date().toISOString(),
       isRead: false,
-      relatedId: newAssignment.id,
+      relatedId: createdBatch[0].id,
     };
     setNotifications((prev) => [broadcastNotif, ...prev]);
   };
 
   const updateAssignment = (id: string, updated: Partial<Assignment>) => {
-    if (currentUser.role !== 'teacher') {
-      alert('Siswa tidak dapat mengedit tugas. Hanya akun guru yang dapat mengedit tugas.');
-      return;
-    }
+    if (currentUser.role !== 'teacher') return;
     setAssignments((prev) =>
       prev.map((a) => {
         if (a.id === id) {
@@ -808,13 +1420,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteAssignment = (id: string) => {
-    if (currentUser.role !== 'teacher') {
-      alert('Siswa tidak dapat menghapus tugas.');
-      return;
-    }
+    if (currentUser.role !== 'teacher') return;
     setAssignments((prev) => prev.filter((a) => a.id !== id));
     setSubmissions((prev) => prev.filter((s) => s.assignmentId !== id));
-
     safeSupabaseCall(supabase.from('assignments').delete().eq('id', id));
   };
 
@@ -824,22 +1432,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     studentNote?: string,
     attendanceNum?: number
   ) => {
-    if (currentUser.role !== 'student') {
-      alert('Akun guru tidak dapat mengumpulkan tugas. Form pengumpulan khusus untuk siswa.');
-      return;
-    }
+    if (currentUser.role !== 'student') return;
 
     const targetAssignment = assignments.find((a) => a.id === assignmentId);
     const now = new Date();
     const isLate = targetAssignment ? now > new Date(targetAssignment.dueDate) : false;
-    const finalAttendance = attendanceNum !== undefined ? attendanceNum : (currentUser.attendanceNumber || 1);
+    const finalAttendance =
+      attendanceNum !== undefined ? attendanceNum : currentUser.attendanceNumber || 1;
 
-    // Update currentUser attendanceNumber if provided
     if (attendanceNum !== undefined && attendanceNum !== currentUser.attendanceNumber) {
       setCurrentUserState((prev) => ({ ...prev, attendanceNumber: attendanceNum }));
     }
 
-    // Check if already submitted, then update or create
     const existingIndex = submissions.findIndex(
       (s) => s.assignmentId === assignmentId && s.studentId === currentUser.id
     );
@@ -858,7 +1462,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       studentNote,
       submittedAt: now.toISOString(),
       isLate,
-      status: 'pending_verification', // Menunggu verifikasi resmi dari guru
+      status: 'pending_verification',
       grade: existingIndex >= 0 ? submissions[existingIndex].grade : undefined,
       feedback: existingIndex >= 0 ? submissions[existingIndex].feedback : undefined,
     };
@@ -873,15 +1477,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSubmissions((prev) => [submissionData, ...prev]);
     }
 
-    // Sync to Supabase
     safeSupabaseCall(supabase.from('submissions').upsert(mapSubmissionToDb(submissionData)));
 
-    // Add confirmation notification
     const notif: AppNotification = {
       id: `notif-${Date.now()}`,
       userId: currentUser.id,
-      title: '🚀 Tugas Berhasil Dikumpulkan!',
-      message: `File "${file.name}" untuk "${targetAssignment?.title || 'Tugas'}" berhasil dikirim. Menunggu verifikasi dari guru pengampu agar XP Anda bertambah!`,
+      title: 'Tugas Berhasil Dikumpulkan!',
+      message: `File "${file.name}" untuk "${
+        targetAssignment?.title || 'Tugas'
+      }" berhasil dikirim (Absen #${finalAttendance}). Menunggu verifikasi dari guru.`,
       type: 'assignment_reminder',
       timestamp: now.toISOString(),
       isRead: false,
@@ -896,10 +1500,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     grade?: number,
     feedback?: string
   ) => {
-    if (currentUser.role !== 'teacher') {
-      alert('Hanya akun guru yang dapat memverifikasi pengumpulan tugas siswa.');
-      return;
-    }
+    if (currentUser.role !== 'teacher') return;
 
     const now = new Date().toISOString();
     let assignTitle = '';
@@ -932,7 +1533,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
     );
 
-    // Sync to Supabase
     safeSupabaseCall(
       supabase
         .from('submissions')
@@ -944,7 +1544,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .eq('id', submissionId)
     );
 
-    // Trigger glowing XP notice
     if (status === 'verified') {
       setLastXpGainNotice({
         amount: awardedXp,
@@ -953,18 +1552,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     }
 
-    // Send notification to student
     if (studentTargetId) {
       const notif: AppNotification = {
         id: `notif-${Date.now()}`,
         userId: studentTargetId,
-        title: status === 'verified' ? '🌟 Tugas Diverifikasi Guru (+XP Menyala!)' : '⚠️ Tugas Perlu Diperbaiki',
+        title:
+          status === 'verified' ? 'Tugas Diverifikasi Guru (+XP Menyala!)' : 'Tugas Perlu Diperbaiki',
         message:
           status === 'verified'
             ? `${currentUser.name} telah memverifikasi tugas "${assignTitle}". XP Anda bertambah +${awardedXp} XP!${
                 grade !== undefined ? ` Nilai: ${grade}/100.` : ''
               }`
-            : `${currentUser.name} meminta perbaikan pada tugas "${assignTitle}": "${feedback || 'Mohon lengkapi tugas Anda'}"`,
+            : `${currentUser.name} meminta perbaikan pada tugas "${assignTitle}": "${
+                feedback || 'Mohon lengkapi tugas Anda'
+              }"`,
         type: 'grade_posted',
         timestamp: now,
         isRead: false,
@@ -985,14 +1586,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, message: 'Hanya akun guru yang dapat mengatur nomor kontak resmi.' };
     }
 
-    // PIN verifikasi sekolah resmi (1985 / 1234 / 2026 atau PIN NIP 4 digit)
     const validPins = ['1985', '1234', '2026', '7788'];
-    const isPinValid = validPins.includes(verificationPin.trim()) || verificationPin.trim().length >= 4;
+    const isPinValid =
+      validPins.includes(verificationPin.trim()) || verificationPin.trim().length >= 4;
 
     if (!isPinValid) {
       return {
         success: false,
-        message: 'PIN verifikasi guru tidak valid. Masukkan PIN keamanan pendidik resmi (misal: 1985).',
+        message:
+          'PIN verifikasi guru tidak valid. Masukkan PIN keamanan pendidik resmi (misal: 1985).',
       };
     }
 
@@ -1004,35 +1606,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Format to Indonesian standard
     let formattedPhone = cleanPhone;
     if (formattedPhone.startsWith('0')) {
       formattedPhone = '62' + formattedPhone.slice(1);
     }
 
-    // Update currentUser state
-    setCurrentUserState((prev) => {
-      const updated = {
-        ...prev,
-        phone: formattedPhone,
-        isPhoneVerified: true,
-      };
-      localStorage.setItem('classsync_user', JSON.stringify(updated));
-      return updated;
-    });
+    setCurrentUserState((prev) => ({
+      ...prev,
+      phone: formattedPhone,
+      isPhoneVerified: true,
+    }));
 
-    // Update active class & schedule items teacherPhone
-    if (activeClass) {
-      setClasses((prev) =>
+    const teacherClassIds = new Set(classes.map((c) => c.id));
+    if (teacherClassIds.size > 0) {
+      setAllClasses((prev) =>
         prev.map((c) =>
-          c.id === activeClass.id
+          teacherClassIds.has(c.id)
             ? { ...c, teacherPhone: formattedPhone, isTeacherVerified: true }
             : c
         )
       );
       setSchedules((prev) =>
         prev.map((s) =>
-          s.classId === activeClass.id
+          teacherClassIds.has(s.classId)
             ? { ...s, teacherPhone: formattedPhone, isTeacherVerified: true }
             : s
         )
@@ -1041,7 +1637,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return {
       success: true,
-      message: 'Nomor WhatsApp resmi guru berhasil diverifikasi! Siswa sekarang dapat langsung terhubung ke WhatsApp Anda.',
+      message:
+        'Nomor WhatsApp resmi guru berhasil diverifikasi! Siswa sekarang dapat langsung terhubung ke WhatsApp Anda.',
     };
   };
 
@@ -1052,12 +1649,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isNonKbmAgenda: boolean,
     location?: string,
     eventDate?: string,
-    eventTime?: string
+    eventTime?: string,
+    targetClassIds?: string[]
   ) => {
-    if (!activeClass) return;
-    const newAnn: Announcement = {
-      id: `ann-${Date.now()}`,
-      classId: activeClass.id,
+    const classIdsToPublish =
+      targetClassIds && targetClassIds.length > 0
+        ? targetClassIds
+        : activeClass
+        ? [activeClass.id]
+        : [];
+    if (classIdsToPublish.length === 0) return;
+
+    const createdList: Announcement[] = classIdsToPublish.map((cid, idx) => ({
+      id: `ann-${Date.now()}-${idx}`,
+      classId: cid,
       title,
       content,
       type,
@@ -1069,23 +1674,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdByName: currentUser.name,
       createdAt: new Date().toISOString(),
       likesCount: 1,
-    };
+    }));
 
-    setAnnouncements((prev) => [newAnn, ...prev]);
+    setAnnouncements((prev) => [...createdList, ...prev]);
+    createdList.forEach((ann) => {
+      safeSupabaseCall(supabase.from('announcements').upsert(mapAnnouncementToDb(ann)));
+    });
 
-    // Sync to Supabase
-    safeSupabaseCall(supabase.from('announcements').upsert(mapAnnouncementToDb(newAnn)));
-
-    // Broadcast push notification
     const notif: AppNotification = {
       id: `notif-${Date.now()}`,
       userId: 'all',
-      title: type === 'urgent' ? '🚨 PENGUMUMAN PENTING GURU' : '📢 Pengumuman & Agenda Baru',
+      title: type === 'urgent' ? 'PENGUMUMAN PENTING GURU' : 'Pengumuman & Agenda Baru',
       message: `${title}: ${content.slice(0, 100)}...`,
       type: 'announcement',
       timestamp: new Date().toISOString(),
       isRead: false,
-      relatedId: newAnn.id,
+      relatedId: createdList[0].id,
     };
     setNotifications((prev) => [notif, ...prev]);
   };
@@ -1117,20 +1721,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       newNotif = {
         id: `notif-${Date.now()}`,
         userId: currentUser.id,
-        title: '🔔 Pengingat Kelas (15 Menit Lagi)',
-        message: 'Fisika Dasar & Mekanika akan dimulai pukul 07:45 di Lab Fisika Lt. 2. Harap membawa jas praktikum!',
+        title: 'Pengingat Kelas (15 Menit Lagi)',
+        message:
+          'Fisika Dasar & Mekanika akan dimulai pukul 07:45 WITA di Lab Fisika Lt. 2. Harap membawa buku catatan!',
         type: 'class_reminder',
         timestamp: new Date().toISOString(),
         isRead: false,
         roomLocation: 'Lab Fisika Lt. 2',
-        dueTimeText: '15 menit lagi (07:45 WIB)',
+        dueTimeText: '15 menit lagi (07:45 WITA)',
       };
     } else if (type === 'assignment_reminder') {
       newNotif = {
         id: `notif-${Date.now()}`,
         userId: currentUser.id,
-        title: '⏰ Pengingat Tugas (H-1 & 2 Jam)',
-        message: 'Tugas "Analisis Vektor & Persamaan Garis Singgung" jatuh tempo dalam 2 jam! Segera kumpulkan file jawaban Anda.',
+        title: 'Pengingat Tugas (2 Jam Lagi)',
+        message:
+          'Tugas jatuh tempo dalam 2 jam! Segera kumpulkan file jawaban beserta nomor urut absen Anda.',
         type: 'assignment_reminder',
         timestamp: new Date().toISOString(),
         isRead: false,
@@ -1140,8 +1746,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       newNotif = {
         id: `notif-${Date.now()}`,
         userId: currentUser.id,
-        title: '📢 Broadcast Pengumuman Guru',
-        message: 'Wali Kelas mengumumkan persiapan simulasi Asesmen Nasional Berbasis Komputer di Lab 1.',
+        title: 'Broadcast Pengumuman Guru',
+        message:
+          'Wali Kelas mengumumkan persiapan simulasi Asesmen Nasional Berbasis Komputer di Lab 1.',
         type: 'announcement',
         timestamp: new Date().toISOString(),
         isRead: false,
@@ -1153,19 +1760,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
         currentUser,
+        registeredUsers,
         setCurrentUser: setCurrentUserState,
+        loginWithCredentials,
+        quickLoginAccount,
+        registerAccount,
+        logout,
         switchRole,
         allDemoUsers,
         loginAsUser,
         registerUser,
         classes,
+        allClasses,
         activeClass,
         setActiveClass,
+        isAllClassesView,
+        setIsAllClassesView,
         createClass,
+        createMultipleClasses,
         deleteClass,
+        leaveClass,
         clearAllClasses,
         joinClassByCode,
+        joinMultipleClassesByCodes,
         schedules,
         addScheduleItem,
         importScheduleItemsBatch,

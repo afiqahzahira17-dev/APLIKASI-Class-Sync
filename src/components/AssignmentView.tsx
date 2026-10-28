@@ -38,6 +38,8 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const {
     currentUser,
     activeClass,
+    classes,
+    isAllClassesView,
     assignments,
     submissions,
     addAssignment,
@@ -68,6 +70,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     dataUrl?: string;
   } | null>(null);
   const [studentNote, setStudentNote] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newTitle, setNewTitle] = useState('');
@@ -75,6 +78,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const [newDescription, setNewDescription] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [attachmentName, setAttachmentName] = useState('');
+  const [selectedTargetClassIds, setSelectedTargetClassIds] = useState<string[]>([]);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -98,12 +102,18 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const [scoreInput, setScoreInput] = useState<number>(90);
   const [feedbackInput, setFeedbackInput] = useState('Bagus sekali, terus tingkatkan!');
 
+  const classMap = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes]);
+  const enrolledClassIds = useMemo(() => new Set(classes.map((c) => c.id)), [classes]);
+  const isCombinedMultiClass = isAllClassesView && classes.length >= 2;
+
   const classAssignments = useMemo(() => {
     if (!activeClass) return [];
     return assignments
-      .filter((a) => a.classId === activeClass.id)
+      .filter((a) =>
+        isCombinedMultiClass ? enrolledClassIds.has(a.classId) : a.classId === activeClass.id
+      )
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  }, [assignments, activeClass]);
+  }, [assignments, activeClass, isCombinedMultiClass, enrolledClassIds]);
 
   const mySubmissionsMap = useMemo(() => {
     const map = new Map<string, Submission>();
@@ -143,9 +153,10 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setFileError(null);
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('Ukuran file melebihi batas maksimal 10MB.');
+        setFileError('Ukuran file melebihi batas maksimal 10MB. Silakan pilih file yang lebih kecil.');
         return;
       }
       const sizeFormatted =
@@ -201,15 +212,21 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
         ]
       : [];
 
-    addAssignment({
-      classId: activeClass.id,
-      title: newTitle.trim(),
-      subjectName: newSubject.trim(),
-      description: newDescription.trim(),
-      dueDate: newDueDate,
-      attachments: attachmentsList,
-      maxScore: 100,
-    });
+    const targets =
+      selectedTargetClassIds.length > 0 ? selectedTargetClassIds : [activeClass.id];
+
+    addAssignment(
+      {
+        classId: targets[0],
+        title: newTitle.trim(),
+        subjectName: newSubject.trim(),
+        description: newDescription.trim(),
+        dueDate: newDueDate,
+        attachments: attachmentsList,
+        maxScore: 100,
+      },
+      targets
+    );
 
     setShowCreateModal(false);
     setNewTitle('');
@@ -390,6 +407,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                     .toISOString()
                     .slice(0, 16);
                   setNewDueDate(isoLocal);
+                  setSelectedTargetClassIds(activeClass ? [activeClass.id] : []);
                   setShowCreateModal(true);
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer whitespace-nowrap"
@@ -587,6 +605,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                       <span className="font-extrabold text-[#E59638]">
                         {assignment.subjectName}
                       </span>
+
+                      {classes.length >= 2 && classMap.get(assignment.classId) && (
+                        <span className="font-bold text-[#163E4B] dark:text-[#FCEADE]">
+                          · {classMap.get(assignment.classId)?.name}
+                        </span>
+                      )}
 
                       {currentUser.role === 'student' && (
                         <>
@@ -908,6 +932,11 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                       : 'Mendukung format PDF, JPG, PNG, DOCX hingga 10MB'}
                   </p>
                 </div>
+                {fileError && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400 font-bold mt-1.5">
+                    {fileError}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -968,6 +997,58 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
             </div>
 
             <form onSubmit={handleCreateAssignment} className="mt-4 space-y-3.5">
+              {classes.length >= 2 && (
+                <div className="p-3 rounded-2xl bg-[#FCEADE]/60 dark:bg-[#0E262F] border border-[#F4D3BA] dark:border-[#245363] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
+                      Pilih Kelas Tujuan (Bisa 2 Kelas atau Lebih) *
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedTargetClassIds(
+                          selectedTargetClassIds.length === classes.length
+                            ? [activeClass.id]
+                            : classes.map((c) => c.id)
+                        )
+                      }
+                      className="text-[11px] font-bold text-[#C87A24] dark:text-[#F4A950] hover:underline cursor-pointer"
+                    >
+                      {selectedTargetClassIds.length === classes.length
+                        ? 'Hanya Kelas Aktif'
+                        : 'Pilih Semua Kelas'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {classes.map((cls) => {
+                      const checked = selectedTargetClassIds.includes(cls.id);
+                      return (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTargetClassIds((prev) => {
+                              if (prev.includes(cls.id)) {
+                                return prev.length > 1 ? prev.filter((id) => id !== cls.id) : prev;
+                              }
+                              return [...prev, cls.id];
+                            });
+                          }}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold border flex items-center gap-1 cursor-pointer transition-all ${
+                            checked
+                              ? 'bg-[#163E4B] border-[#163E4B] text-white'
+                              : 'bg-white dark:bg-[#13313C] border-[#DCE3E6] dark:border-[#275668] text-[#6E828A] dark:text-[#B2CBD4]'
+                          }`}
+                        >
+                          {checked && <Check className="w-3 h-3 text-[#F4A950]" />}
+                          <span>{cls.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Judul Tugas *

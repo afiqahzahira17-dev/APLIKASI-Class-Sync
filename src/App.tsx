@@ -11,6 +11,7 @@ import { NotificationModal } from './components/NotificationModal';
 import { AuthModal } from './components/AuthModal';
 import { ClassModal } from './components/ClassModal';
 import { XpGlowBanner } from './components/XpGlowBanner';
+import { LoginPage } from './components/LoginPage';
 
 const MainContent: React.FC = () => {
   const { activeTab } = useApp();
@@ -53,12 +54,24 @@ const MainContent: React.FC = () => {
   );
 };
 
+const AppPortalGate: React.FC = () => {
+  const { isAuthenticated } = useApp();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return (
+    <MobileDeviceShell>
+      <MainContent />
+    </MobileDeviceShell>
+  );
+};
+
 export default function App() {
   return (
     <AppProvider>
-      <MobileDeviceShell>
-        <MainContent />
-      </MobileDeviceShell>
+      <AppPortalGate />
     </AppProvider>
   );
 }

@@ -38,6 +38,8 @@ interface ScheduleViewProps {
 export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) => {
   const {
     activeClass,
+    classes,
+    isAllClassesView,
     schedules,
     currentUser,
     simulatedDay,
@@ -76,6 +78,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
   const [roomLocation, setRoomLocation] = useState('Ruang 7-A (Lantai 1)');
   const [colorTheme, setColorTheme] = useState('amber');
   const [notes, setNotes] = useState('');
+  const [targetScheduleClassId, setTargetScheduleClassId] = useState<string>('');
 
   const days = [
     { id: 1, label: 'Senin', short: 'Sen' },
@@ -93,13 +96,22 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     : timeToMinutes(simulatedTime);
   const effectiveSeconds = isRealTimeWita ? witaTimeInfo.seconds : 0;
 
-  // Filter schedules for the current active class and selected day, sorted chronologically
+  const classMap = useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes]);
+  const enrolledClassIds = useMemo(() => new Set(classes.map((c) => c.id)), [classes]);
+  const isCombinedMultiClass = isAllClassesView && classes.length >= 2;
+
+  // Filter schedules for the current active class (or all enrolled classes) and selected day
   const daySchedules = useMemo(() => {
     if (!activeClass) return [];
     return schedules
-      .filter((s) => s.classId === activeClass.id && s.dayOfWeek === selectedDay)
+      .filter((s) => {
+        const classMatch = isCombinedMultiClass
+          ? enrolledClassIds.has(s.classId)
+          : s.classId === activeClass.id;
+        return classMatch && s.dayOfWeek === selectedDay;
+      })
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  }, [schedules, activeClass, selectedDay]);
+  }, [schedules, activeClass, isCombinedMultiClass, enrolledClassIds, selectedDay]);
 
   // Automatically select today's day when real-time WITA is active (default Monday if Sunday)
   React.useEffect(() => {
@@ -108,19 +120,24 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     }
   }, [isRealTimeWita, witaTimeInfo.dayOfWeek]);
 
-  // Determine if there is ANY live class right now in WITA for this class
+  // Determine if there is ANY live class right now in WITA for this class (or combined classes)
   const liveClassToday = useMemo(() => {
     if (!activeClass) return null;
     return (
       schedules
-        .filter((s) => s.classId === activeClass.id && s.dayOfWeek === effectiveDay)
+        .filter((s) => {
+          const classMatch = isCombinedMultiClass
+            ? enrolledClassIds.has(s.classId)
+            : s.classId === activeClass.id;
+          return classMatch && s.dayOfWeek === effectiveDay;
+        })
         .find((s) => {
           const startMin = timeToMinutes(s.startTime);
           const endMin = timeToMinutes(s.endTime);
           return effectiveMinutes >= startMin && effectiveMinutes < endMin;
         }) || null
     );
-  }, [schedules, activeClass, effectiveDay, effectiveMinutes]);
+  }, [schedules, activeClass, isCombinedMultiClass, enrolledClassIds, effectiveDay, effectiveMinutes]);
 
   // Real-time progress with seconds precision
   const liveClassProgress = useMemo(() => {
@@ -136,25 +153,33 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
   // Daily schedule completion percentage for the circular ring when no live class is running
   const dailyCompletionPercent = useMemo(() => {
     if (!activeClass) return 0;
-    const todayItems = schedules.filter(
-      (s) => s.classId === activeClass.id && s.dayOfWeek === (effectiveDay === 7 ? 1 : effectiveDay)
-    );
+    const todayItems = schedules.filter((s) => {
+      const classMatch = isCombinedMultiClass
+        ? enrolledClassIds.has(s.classId)
+        : s.classId === activeClass.id;
+      return classMatch && s.dayOfWeek === (effectiveDay === 7 ? 1 : effectiveDay);
+    });
     if (todayItems.length === 0) return 0;
     if (effectiveDay === 7) return 100;
     const doneCount = todayItems.filter((s) => effectiveMinutes >= timeToMinutes(s.endTime)).length;
     return Math.round((doneCount / todayItems.length) * 100);
-  }, [schedules, activeClass, effectiveDay, effectiveMinutes]);
+  }, [schedules, activeClass, isCombinedMultiClass, enrolledClassIds, effectiveDay, effectiveMinutes]);
 
   // Next upcoming class on today's effective day
   const upcomingClass = useMemo(() => {
     if (!activeClass) return null;
     return (
       schedules
-        .filter((s) => s.classId === activeClass.id && s.dayOfWeek === effectiveDay)
+        .filter((s) => {
+          const classMatch = isCombinedMultiClass
+            ? enrolledClassIds.has(s.classId)
+            : s.classId === activeClass.id;
+          return classMatch && s.dayOfWeek === effectiveDay;
+        })
         .filter((s) => timeToMinutes(s.startTime) > effectiveMinutes)
         .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))[0] || null
     );
-  }, [schedules, activeClass, effectiveDay, effectiveMinutes]);
+  }, [schedules, activeClass, isCombinedMultiClass, enrolledClassIds, effectiveDay, effectiveMinutes]);
 
   const handleOpenAdd = () => {
     setEditingItem(null);
@@ -165,6 +190,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     setRoomLocation('Ruang 7-A (Lantai 1)');
     setColorTheme('amber');
     setNotes('');
+    setTargetScheduleClassId(activeClass?.id || (classes[0]?.id ?? ''));
     setShowAddModal(true);
   };
 
@@ -177,6 +203,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     setRoomLocation(item.roomLocation);
     setColorTheme(item.colorTheme || 'amber');
     setNotes(item.notes || '');
+    setTargetScheduleClassId(item.classId);
     setSelectedDay(item.dayOfWeek === 7 ? 1 : item.dayOfWeek);
     setShowAddModal(true);
   };
@@ -185,9 +212,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
     e.preventDefault();
     if (!activeClass || !subjectName.trim() || !roomLocation.trim()) return;
 
+    const chosenClassId = targetScheduleClassId || activeClass.id;
     const safeDay = Math.min(6, Math.max(1, selectedDay === 7 ? 1 : selectedDay));
     if (editingItem) {
       updateScheduleItem(editingItem.id, {
+        classId: chosenClassId,
         dayOfWeek: safeDay,
         subjectName,
         teacherName,
@@ -199,7 +228,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
       });
     } else {
       addScheduleItem({
-        classId: activeClass.id,
+        classId: chosenClassId,
         dayOfWeek: safeDay,
         subjectName,
         teacherName,
@@ -562,7 +591,8 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
                 </h3>
               </div>
               <span className="text-xs text-[#FCEADE]/90 font-semibold tabular-nums">
-                {activeClass.name} · {daySchedules.length} Sesi
+                {isCombinedMultiClass ? `Semua (${classes.length} Kelas)` : activeClass.name} ·{' '}
+                {daySchedules.length} Sesi
               </span>
             </div>
 
@@ -707,6 +737,16 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
                                 <Clock className="w-3.5 h-3.5 text-[#F4A950]" />
                                 {item.startTime} - {item.endTime} WITA
                               </span>
+
+                              {classes.length >= 2 && classMap.get(item.classId) && (
+                                <span
+                                  className={`text-[11px] font-extrabold ${
+                                    isLive ? 'text-[#FCEADE]' : 'text-[#163E4B] dark:text-[#F4A950]'
+                                  }`}
+                                >
+                                  · {classMap.get(item.classId)?.name}
+                                </span>
+                              )}
 
                               {isLive && (
                                 <span className="text-[11px] font-bold text-[#FCEADE]">
@@ -922,6 +962,25 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({ onOpenClassModal }) 
             </div>
 
             <form onSubmit={handleSubmitSchedule} className="mt-4 space-y-3.5">
+              {classes.length >= 2 && (
+                <div>
+                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
+                    Pilih Kelas Tujuan *
+                  </label>
+                  <select
+                    value={targetScheduleClassId || activeClass.id}
+                    onChange={(e) => setTargetScheduleClassId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs font-bold rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                  >
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.gradeLevel})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Mata Pelajaran *

@@ -16,6 +16,8 @@ import {
   Radio,
   RotateCcw,
   CheckCircle2,
+  Layers,
+  LogOut,
 } from 'lucide-react';
 import { GamificationModal } from './GamificationModal';
 import { PrivacySettingsModal } from './PrivacySettingsModal';
@@ -37,6 +39,9 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
     activeClass,
     classes,
     setActiveClass,
+    isAllClassesView,
+    setIsAllClassesView,
+    logout,
     notifications,
     isDarkMode,
     setIsDarkMode,
@@ -75,7 +80,11 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#6E828A] dark:text-[#98B4BE] font-medium truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[210px]">
-                {activeClass ? activeClass.name : 'Belum Ada Kelas'}
+                {isAllClassesView && classes.length >= 2
+                  ? `Semua Kelas (${classes.length})`
+                  : activeClass
+                  ? activeClass.name
+                  : 'Belum Ada Kelas'}
               </p>
             </div>
           </div>
@@ -173,7 +182,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               id="header-user-avatar-btn"
               onClick={onOpenAuth}
               className="flex items-center pl-0.5 rounded-full hover:ring-2 hover:ring-[#F4A950] transition-all shrink-0 cursor-pointer"
-              title="Akun & Profil"
+              title="Akun & Ganti Pengguna"
             >
               <img
                 src={currentUser.avatarUrl || AVATAR_STUDENT_SVG}
@@ -185,39 +194,68 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white dark:border-[#245566] shadow-2xs"
               />
             </button>
+
+            {/* Quick Logout to Dedicated Login Page */}
+            <button
+              id="header-logout-btn"
+              onClick={logout}
+              className="p-1.5 rounded-xl text-[#6E828A] hover:text-rose-600 dark:text-[#98B4BE] dark:hover:text-rose-400 hover:bg-white dark:hover:bg-[#173A47] transition-colors cursor-pointer"
+              title="Keluar ke Halaman Login"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Multi-Class Quick Switcher Strip */}
+        {/* Multi-Class Quick Switcher Strip (Supports 2+ Classes + Combined Semua Kelas View) */}
         <div className="bg-white/75 dark:bg-[#112C36]/75 border-t border-[#ECECE6] dark:border-[#1B4250] px-3 sm:px-4 py-1.5">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 flex-1">
               <span className="text-[11px] font-bold text-[#7B8D93] dark:text-[#89A8B2] shrink-0 mr-1 hidden xs:inline">
-                Kelas:
+                Kelas ({classes.length}):
               </span>
               {classes.length === 0 ? (
                 <span className="text-xs text-[#7B8D93] dark:text-[#89A8B2] py-0.5">
                   Belum ada kelas terdaftar. Klik tombol di kanan untuk memulai.
                 </span>
               ) : (
-                classes.map((cls) => {
-                  const isActive = activeClass && cls.id === activeClass.id;
-                  return (
+                <>
+                  {classes.length >= 2 && (
                     <button
-                      key={cls.id}
-                      id={`quick-class-tab-${cls.id}`}
-                      onClick={() => setActiveClass(cls)}
+                      id="quick-class-tab-all"
+                      onClick={() => setIsAllClassesView(true)}
                       className={`px-3.5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                        isActive
+                        isAllClassesView
                           ? 'bg-[#163E4B] text-white shadow-[0_4px_12px_rgba(22,62,75,0.2)]'
-                          : 'bg-white dark:bg-[#163A47] text-[#5C737B] dark:text-[#C5D8DF] border border-[#E6E8E5] dark:border-[#265464] hover:border-[#163E4B]/40'
+                          : 'bg-[#FCEADE] dark:bg-[#193D4A] text-[#163E4B] dark:text-[#FCEADE] border border-[#F2CFAF] dark:border-[#2C5B6C] hover:border-[#F4A950]'
                       }`}
+                      title="Tampilkan jadwal, tugas, dan agenda gabungan dari semua kelas Anda"
                     >
-                      <span>{cls.name}</span>
-                      {isActive && <Check className="w-3 h-3 text-[#F4A950]" />}
+                      <Layers className="w-3 h-3 text-[#F4A950]" />
+                      <span className="tabular-nums">Semua Kelas ({classes.length})</span>
+                      {isAllClassesView && <Check className="w-3 h-3 text-[#F4A950]" />}
                     </button>
-                  );
-                })
+                  )}
+
+                  {classes.map((cls) => {
+                    const isActive = !isAllClassesView && activeClass && cls.id === activeClass.id;
+                    return (
+                      <button
+                        key={cls.id}
+                        id={`quick-class-tab-${cls.id}`}
+                        onClick={() => setActiveClass(cls)}
+                        className={`px-3.5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                          isActive
+                            ? 'bg-[#163E4B] text-white shadow-[0_4px_12px_rgba(22,62,75,0.2)]'
+                            : 'bg-white dark:bg-[#163A47] text-[#5C737B] dark:text-[#C5D8DF] border border-[#E6E8E5] dark:border-[#265464] hover:border-[#163E4B]/40'
+                        }`}
+                      >
+                        <span>{cls.name}</span>
+                        {isActive && <Check className="w-3 h-3 text-[#F4A950]" />}
+                      </button>
+                    );
+                  })}
+                </>
               )}
             </div>
 
@@ -228,19 +266,19 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               className="px-3 py-1 text-xs font-bold text-white bg-[#F4A950] hover:bg-[#E59638] rounded-full shadow-[0_4px_12px_rgba(244,169,80,0.35)] shrink-0 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
               title={
                 currentUser.role === 'teacher'
-                  ? 'Buat Kelas Baru'
-                  : 'Gabung ke Kelas Menggunakan Kode'
+                  ? 'Buat atau Gabung Kelas Baru (Bisa 2+ Kelas)'
+                  : 'Gabung ke Kelas Menggunakan Kode (Bisa 2+ Kelas)'
               }
             >
               {currentUser.role === 'teacher' ? (
                 <>
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Buat Kelas</span>
+                  <span>Tambah Kelas</span>
                 </>
               ) : (
                 <>
                   <KeyRound className="w-3 h-3" />
-                  <span>Gabung</span>
+                  <span>+ Gabung Kelas</span>
                 </>
               )}
             </button>

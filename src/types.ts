@@ -4,10 +4,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: UserRole;
   avatarUrl: string;
   identifierNumber: string; // NISN for student, NIP for teacher
   className?: string; // e.g. "X MIPA 1"
+  joinedClassIds?: string[]; // Mendukung gabung ke 2 kelas atau lebih
   schoolName: string;
   phone?: string; // WhatsApp number
   isPhoneVerified?: boolean; // Verifikasi nomor WhatsApp guru agar tidak disalahgunakan
@@ -55,6 +57,7 @@ export interface ClassRoom {
   subjectDefault?: string;
   academicYear: string;
   studentCount: number;
+  memberIds?: string[]; // Daftar ID pengguna yang tergabung di kelas ini
   description: string;
   bannerColor: string; // Tailwind color theme identifier
 }

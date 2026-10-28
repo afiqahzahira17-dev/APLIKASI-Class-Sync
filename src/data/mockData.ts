@@ -33,6 +33,7 @@ export const INITIAL_STUDENT: User = {
   id: 'student-1',
   name: 'Afiqah Zahira',
   email: 'afiqahzahira17@gmail.com',
+  password: '123',
   role: 'student',
   avatarUrl: AVATAR_STUDENT_SVG,
   identifierNumber: 'NISN. 0092837410',
@@ -45,7 +46,8 @@ export const INITIAL_STUDENT: User = {
 export const INITIAL_TEACHER: User = {
   id: 'teacher-1',
   name: 'Afiqah Zahira (Guru)',
-  email: 'afiqahzahira17@gmail.com',
+  email: 'guru@sekolah.sch.id',
+  password: '123',
   role: 'teacher',
   avatarUrl: AVATAR_TEACHER_SVG,
   identifierNumber: 'NIP. 199501012022032001',
@@ -57,7 +59,7 @@ export const INITIAL_TEACHER: User = {
 // Clean real users only - no sample/fake students
 export const DEMO_STUDENTS: User[] = [INITIAL_STUDENT];
 
-// Empty list of classes so the user can create their own custom classes
+// Empty list of classes by default so users can create/join custom classes
 export const INITIAL_CLASSES: ClassRoom[] = [];
 
 // Schedules, assignments, submissions, announcements will be created dynamically under user-created classes

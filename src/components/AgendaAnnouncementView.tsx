@@ -12,6 +12,7 @@ import {
   CalendarCheck2,
   Trash2,
   CheckCircle,
+  Check,
 } from 'lucide-react';
 
 interface AgendaAnnouncementViewProps {
@@ -24,6 +25,8 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
   const {
     currentUser,
     activeClass,
+    classes,
+    isAllClassesView,
     announcements,
     addAnnouncement,
     deleteAnnouncement,
@@ -40,9 +43,17 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [location, setLocation] = useState('');
+  const [selectedTargetClassIds, setSelectedTargetClassIds] = useState<string[]>([]);
+
+  const classMap = React.useMemo(() => new Map(classes.map((c) => [c.id, c])), [classes]);
+  const enrolledClassIds = React.useMemo(() => new Set(classes.map((c) => c.id)), [classes]);
+  const isCombinedMultiClass = isAllClassesView && classes.length >= 2;
 
   const classAnnouncements = announcements
-    .filter((a) => activeClass && a.classId === activeClass.id)
+    .filter((a) => {
+      if (!activeClass) return false;
+      return isCombinedMultiClass ? enrolledClassIds.has(a.classId) : a.classId === activeClass.id;
+    })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const displayedList = classAnnouncements.filter((item) => {
@@ -56,6 +67,9 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
     e.preventDefault();
     if (!activeClass || !title.trim() || !content.trim()) return;
 
+    const targets =
+      selectedTargetClassIds.length > 0 ? selectedTargetClassIds : [activeClass.id];
+
     addAnnouncement(
       title.trim(),
       content.trim(),
@@ -63,7 +77,8 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
       isNonKbmAgenda,
       location.trim() || undefined,
       eventDate || undefined,
-      eventTime.trim() || undefined
+      eventTime.trim() || undefined,
+      targets
     );
 
     setShowCreateModal(false);
@@ -123,7 +138,10 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
         {currentUser.role === 'teacher' && (
           <button
             id="create-announcement-btn"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setSelectedTargetClassIds(activeClass ? [activeClass.id] : []);
+              setShowCreateModal(true);
+            }}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer relative z-10 whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -210,6 +228,11 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                         <span className="font-extrabold text-xs sm:text-sm text-[#163E4B] dark:text-white">
                           {item.createdByName}
                         </span>
+                        {classes.length >= 2 && classMap.get(item.classId) && (
+                          <span className="text-[11px] font-bold text-[#163E4B] dark:text-[#FCEADE]">
+                            · {classMap.get(item.classId)?.name}
+                          </span>
+                        )}
                         {isUrgent && (
                           <span className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400">
                             · Penting / Segera
@@ -315,6 +338,58 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
             </div>
 
             <form onSubmit={handleCreate} className="mt-4 space-y-3.5">
+              {classes.length >= 2 && (
+                <div className="p-3 rounded-2xl bg-[#FCEADE]/60 dark:bg-[#0E262F] border border-[#F4D3BA] dark:border-[#245363] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
+                      Broadcast ke Kelas (Bisa 2 Kelas atau Lebih) *
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedTargetClassIds(
+                          selectedTargetClassIds.length === classes.length
+                            ? [activeClass.id]
+                            : classes.map((c) => c.id)
+                        )
+                      }
+                      className="text-[11px] font-bold text-[#C87A24] dark:text-[#F4A950] hover:underline cursor-pointer"
+                    >
+                      {selectedTargetClassIds.length === classes.length
+                        ? 'Hanya Kelas Aktif'
+                        : 'Pilih Semua Kelas'}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {classes.map((cls) => {
+                      const checked = selectedTargetClassIds.includes(cls.id);
+                      return (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTargetClassIds((prev) => {
+                              if (prev.includes(cls.id)) {
+                                return prev.length > 1 ? prev.filter((id) => id !== cls.id) : prev;
+                              }
+                              return [...prev, cls.id];
+                            });
+                          }}
+                          className={`px-3 py-1 rounded-xl text-xs font-bold border flex items-center gap-1 cursor-pointer transition-all ${
+                            checked
+                              ? 'bg-[#163E4B] border-[#163E4B] text-white'
+                              : 'bg-white dark:bg-[#13313C] border-[#DCE3E6] dark:border-[#275668] text-[#6E828A] dark:text-[#B2CBD4]'
+                          }`}
+                        >
+                          {checked && <Check className="w-3 h-3 text-[#F4A950]" />}
+                          <span>{cls.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Kategori Informasi

@@ -17,6 +17,8 @@ import {
   Sparkles,
   MessageCircle,
   ShieldCheck,
+  LogOut,
+  Layers,
 } from 'lucide-react';
 
 interface ClassDetailViewProps {
@@ -26,11 +28,16 @@ interface ClassDetailViewProps {
 export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassModal }) => {
   const {
     currentUser,
+    registeredUsers,
     activeClass,
     classes,
     setActiveClass,
+    isAllClassesView,
+    setIsAllClassesView,
     deleteClass,
+    leaveClass,
     clearAllClasses,
+    logout,
     assignments,
     submissions,
     userXp,
@@ -41,6 +48,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
   } = useApp();
   const [copiedCode, setCopiedCode] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const isTeacher = currentUser.role === 'teacher';
 
@@ -51,20 +60,6 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleDeleteClass = (clsId: string, clsName: string) => {
-    if (!isTeacher) {
-      alert('Hanya akun guru yang dapat menghapus kelas.');
-      return;
-    }
-    if (
-      window.confirm(
-        `Hapus kelas "${clsName}"? Semua jadwal dan tugas di kelas ini akan ikut terhapus.`
-      )
-    ) {
-      deleteClass(clsId);
-    }
-  };
-
   const classStudents = React.useMemo(() => {
     if (!activeClass) return [];
     const studentMap = new Map<
@@ -72,7 +67,27 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
       { id: string; name: string; avatarUrl: string; identifierNumber?: string }
     >();
 
-    if (currentUser.role === 'student') {
+    // Include all registered student accounts enrolled in this class
+    registeredUsers
+      .filter(
+        (u) =>
+          u.role === 'student' &&
+          ((u.joinedClassIds || []).includes(activeClass.id) ||
+            (activeClass.memberIds || []).includes(u.id))
+      )
+      .forEach((stu) => {
+        studentMap.set(stu.id, {
+          id: stu.id,
+          name: stu.name,
+          avatarUrl: stu.avatarUrl || AVATAR_STUDENT_SVG,
+          identifierNumber: stu.identifierNumber,
+        });
+      });
+
+    if (
+      currentUser.role === 'student' &&
+      (currentUser.joinedClassIds || []).includes(activeClass.id)
+    ) {
       studentMap.set(currentUser.id, {
         id: currentUser.id,
         name: currentUser.name,
@@ -101,7 +116,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
       });
 
     return Array.from(studentMap.values());
-  }, [activeClass, currentUser, assignments, submissions]);
+  }, [activeClass, currentUser, registeredUsers, assignments, submissions]);
 
   return (
     <div className="space-y-4 pb-24">
@@ -109,43 +124,57 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
       <div className="bg-[#163E4B] rounded-[28px] p-5 text-white shadow-[0_14px_34px_rgba(22,62,75,0.2)] relative overflow-hidden">
         <div className="w-36 h-36 rounded-full border-[7px] border-white/[0.05] absolute -right-10 -bottom-12 pointer-events-none" />
 
-        <div className="flex items-center gap-3.5 relative z-10">
-          <img
-            src={currentUser.avatarUrl || AVATAR_STUDENT_SVG}
-            alt={currentUser.name}
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              e.currentTarget.src = AVATAR_STUDENT_SVG;
-            }}
-            className="w-14 h-14 rounded-2xl object-cover border-2 border-[#F4A950] shadow-xs"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-extrabold text-base sm:text-lg text-white truncate">
-                {currentUser.name}
-              </h3>
-              <span className="text-xs font-bold text-[#F4A950]">
-                · {currentUser.role === 'teacher' ? 'Guru' : 'Siswa'}
-              </span>
-            </div>
+        <div className="flex items-start justify-between gap-3.5 flex-wrap relative z-10">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <img
+              src={currentUser.avatarUrl || AVATAR_STUDENT_SVG}
+              alt={currentUser.name}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src = AVATAR_STUDENT_SVG;
+              }}
+              className="w-14 h-14 rounded-2xl object-cover border-2 border-[#F4A950] shadow-xs shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-extrabold text-base sm:text-lg text-white truncate">
+                  {currentUser.name}
+                </h3>
+                <span className="text-xs font-bold text-[#F4A950]">
+                  · {currentUser.role === 'teacher' ? 'Guru' : 'Siswa'}
+                </span>
+              </div>
 
-            <p className="text-xs text-white/75 font-medium mt-0.5 flex items-center gap-2 flex-wrap">
-              <span>{currentUser.identifierNumber}</span>
-              <span>·</span>
-              <span>{currentUser.schoolName}</span>
-            </p>
+              <p className="text-xs text-white/75 font-medium mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
+                <span>{currentUser.identifierNumber}</span>
+                <span>·</span>
+                <span>{currentUser.schoolName}</span>
+                <span>·</span>
+                <span className="text-[#FCEADE] font-bold">{classes.length} Kelas Aktif</span>
+              </p>
 
-            <div className="flex items-center gap-3 mt-2 flex-wrap text-xs">
-              <span className="inline-flex items-center gap-1.5 text-[#FCEADE] font-bold tabular-nums">
-                <Trophy className="w-3.5 h-3.5 text-[#F4A950]" />
-                Level {userLevel.level}: {userLevel.title} ({userXp} XP)
-              </span>
-              <span className="inline-flex items-center gap-1 text-white/80 font-semibold tabular-nums">
-                <Sparkles className="w-3.5 h-3.5 text-[#F4A950]" />
-                {userBadges.filter((b) => b.isUnlocked).length}/{userBadges.length} Lencana
-              </span>
+              <div className="flex items-center gap-3 mt-2 flex-wrap text-xs">
+                <span className="inline-flex items-center gap-1.5 text-[#FCEADE] font-bold tabular-nums">
+                  <Trophy className="w-3.5 h-3.5 text-[#F4A950]" />
+                  Level {userLevel.level}: {userLevel.title} ({userXp} XP)
+                </span>
+                <span className="inline-flex items-center gap-1 text-white/80 font-semibold tabular-nums">
+                  <Sparkles className="w-3.5 h-3.5 text-[#F4A950]" />
+                  {userBadges.filter((b) => b.isUnlocked).length}/{userBadges.length} Lencana
+                </span>
+              </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="px-3.5 py-2 rounded-full bg-white/12 hover:bg-rose-500/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            title="Keluar ke Halaman Login"
+          >
+            <LogOut className="w-3.5 h-3.5 text-[#F4A950]" />
+            <span>Keluar Akun</span>
+          </button>
         </div>
       </div>
 
@@ -155,32 +184,47 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
           <div>
             <h4 className="font-extrabold text-sm sm:text-base text-[#163E4B] dark:text-white flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-[#F4A950]" />
-              <span>Daftar Kelas Anda ({classes.length} Kelas)</span>
+              <span className="tabular-nums">Daftar Kelas Anda ({classes.length} Kelas)</span>
             </h4>
             <p className="text-xs text-[#6E828A] dark:text-[#9CB7C0]">
               {classes.length === 0
-                ? 'Semua kelas kosong. Mulai dengan membuat kelas sendiri.'
-                : 'Pilih kelas untuk melihat jadwal pelajaran dan tugas masing-masing'}
+                ? 'Belum ada kelas terdaftar. Anda dapat bergabung atau membuat 2 kelas atau lebih.'
+                : 'Anda dapat tergabung di 2 kelas atau lebih dan berpindah kapan saja'}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {isTeacher && classes.length > 0 && (
-              <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      'Hapus semua kelas yang terdaftar? Tindakan ini tidak dapat dibatalkan.'
-                    )
-                  ) {
-                    clearAllClasses();
-                  }
-                }}
-                className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 rounded-full text-xs font-bold flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
-                title="Hapus Semua Kelas"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Hapus Semua</span>
-              </button>
+              confirmClearAll ? (
+                <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-1 rounded-full border border-rose-200 dark:border-rose-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAllClasses();
+                      setConfirmClearAll(false);
+                    }}
+                    className="text-xs font-extrabold text-rose-700 dark:text-rose-300 px-2 cursor-pointer"
+                  >
+                    Ya, Hapus Semua
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearAll(false)}
+                    className="text-xs font-bold text-[#6E828A] px-1.5 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearAll(true)}
+                  className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 rounded-full text-xs font-bold flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
+                  title="Hapus Semua Kelas"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Hapus Semua</span>
+                </button>
+              )
             )}
             {isTeacher ? (
               <button
@@ -188,7 +232,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 className="px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Buat Kelas Baru</span>
+                <span>Tambah / Gabung Kelas</span>
               </button>
             ) : (
               <button
@@ -196,11 +240,42 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 className="px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer whitespace-nowrap"
               >
                 <KeyRound className="w-3.5 h-3.5" />
-                <span>Gabung via Kode</span>
+                <span>+ Gabung Kelas Lain</span>
               </button>
             )}
           </div>
         </div>
+
+        {/* Combined All-Classes View Toggle Banner when enrolled in 2+ classes */}
+        {classes.length >= 2 && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-[#FCEADE]/75 dark:bg-[#193D4A] border border-[#F4D3BA] dark:border-[#2A596A] flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#163E4B] text-[#F4A950] flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-[#163E4B] dark:text-white">
+                  Mode Gabungan {classes.length} Kelas
+                </p>
+                <p className="text-[11px] text-[#5C717A] dark:text-[#C5DBE2]">
+                  Tampilkan jadwal, tugas, dan pengumuman dari seluruh kelas Anda dalam satu layar.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAllClassesView(!isAllClassesView)}
+              className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                isAllClassesView
+                  ? 'bg-[#163E4B] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white border border-[#DCE4E7] dark:border-[#245363]'
+              }`}
+            >
+              {isAllClassesView ? '✓ Mode Gabungan Aktif' : 'Aktifkan Semua Kelas'}
+            </button>
+          </div>
+        )}
 
         {classes.length === 0 ? (
           <div className="text-center py-10 px-4 border border-dashed border-[#D8E0E3] dark:border-[#245363] rounded-[24px] bg-[#F7F7F5] dark:bg-[#0E262F]">
@@ -245,8 +320,9 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {classes.map((cls, idx) => {
-              const isActive = activeClass && cls.id === activeClass.id;
+              const isActive = !isAllClassesView && activeClass && cls.id === activeClass.id;
               const isPeach = !isActive && idx % 2 === 1;
+              const isOwnerTeacher = isTeacher && cls.teacherId === currentUser.id;
               return (
                 <div
                   key={cls.id}
@@ -278,17 +354,53 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                             {cls.code}
                           </span>
                         )}
-                        {isTeacher && (
+                        {isOwnerTeacher ? (
+                          confirmDeleteId === cls.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteClass(cls.id);
+                                  setConfirmDeleteId(null);
+                                }}
+                                className="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold cursor-pointer"
+                              >
+                                Hapus
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(null)}
+                                className="px-1.5 py-0.5 text-[10px] font-bold opacity-80 cursor-pointer"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(cls.id)}
+                              className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                                isActive
+                                  ? 'text-white/70 hover:text-rose-300'
+                                  : 'text-[#7B8D93] hover:text-rose-600'
+                              }`}
+                              title={`Hapus kelas ${cls.name}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                        ) : (
                           <button
-                            onClick={() => handleDeleteClass(cls.id, cls.name)}
-                            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                            type="button"
+                            onClick={() => leaveClass(cls.id)}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
                               isActive
-                                ? 'text-white/70 hover:text-rose-300'
-                                : 'text-[#7B8D93] hover:text-rose-600'
+                                ? 'bg-white/15 text-white hover:bg-rose-500'
+                                : 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40'
                             }`}
-                            title={`Hapus kelas ${cls.name}`}
+                            title={`Keluar dari kelas ${cls.name}`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            Keluar
                           </button>
                         )}
                       </div>
