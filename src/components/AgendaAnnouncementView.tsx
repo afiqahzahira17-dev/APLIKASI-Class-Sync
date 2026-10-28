@@ -9,12 +9,9 @@ import {
   Clock,
   Heart,
   AlertTriangle,
-  Info,
   CalendarCheck2,
   Trash2,
   CheckCircle,
-  Radio,
-  Share2,
 } from 'lucide-react';
 
 interface AgendaAnnouncementViewProps {
@@ -36,7 +33,6 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'announcements' | 'agenda'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Form states
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [type, setType] = useState<'urgent' | 'info' | 'agenda'>('info');
@@ -45,7 +41,6 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
   const [eventTime, setEventTime] = useState('');
   const [location, setLocation] = useState('');
 
-  // Filter announcements for active class
   const classAnnouncements = announcements
     .filter((a) => activeClass && a.classId === activeClass.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -105,16 +100,20 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Top Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5">
-            <Megaphone className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
-              Pengumuman & Agenda Harian
+      {/* Top Banner in Deep Petrol #163E4B */}
+      <div className="bg-[#163E4B] rounded-[28px] p-5 text-white shadow-[0_14px_34px_rgba(22,62,75,0.2)] flex items-center justify-between gap-3 flex-wrap relative overflow-hidden">
+        <div className="w-32 h-32 rounded-full border-[6px] border-white/[0.05] absolute -right-8 -bottom-10 pointer-events-none" />
+
+        <div className="space-y-0.5 relative z-10">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-white/12 text-[#F4A950]">
+              <Megaphone className="w-4 h-4" />
+            </div>
+            <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight">
+              Pengumuman & <span className="text-[#F4A950]">Agenda Harian</span>
             </h3>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-white/75">
             {currentUser.role === 'teacher'
               ? 'Bagikan pengumuman cepat KBM dan agenda kegiatan sekolah'
               : 'Informasi resmi dari guru pengampu dan jadwal agenda sekolah'}
@@ -125,7 +124,7 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
           <button
             id="create-announcement-btn"
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer relative z-10 whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Buat Info/Agenda</span>
@@ -134,19 +133,19 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
       </div>
 
       {/* Tabs Filter */}
-      <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl">
+      <div className="flex items-center gap-1 bg-white dark:bg-[#13313C] p-1 rounded-full border border-[#ECECE6] dark:border-[#214B59] shadow-2xs">
         {[
           { id: 'all' as const, label: 'Semua Informasi' },
           { id: 'announcements' as const, label: 'Pengumuman KBM' },
-          { id: 'agenda' as const, label: 'Agenda Non-KBM 📅' },
+          { id: 'agenda' as const, label: 'Agenda Non-KBM' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveFilter(tab.id)}
-            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 py-2 px-2.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap truncate ${
               activeFilter === tab.id
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                ? 'bg-[#163E4B] text-white shadow-xs'
+                : 'text-[#6E828A] dark:text-[#9CB7C0] hover:text-[#163E4B] dark:hover:text-white'
             }`}
           >
             {tab.label}
@@ -156,43 +155,45 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
 
       {/* Announcements List */}
       {displayedList.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-dashed border-slate-300 dark:border-slate-800 text-center space-y-2">
-          <Megaphone className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600" />
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#13313C] rounded-[26px] p-8 border border-dashed border-[#D8E0E3] dark:border-[#245363] text-center space-y-2 shadow-[0_8px_24px_rgba(22,62,75,0.04)]">
+          <Megaphone className="w-10 h-10 mx-auto text-[#B5C4C9] dark:text-[#577C89]" />
+          <p className="text-sm font-bold text-[#163E4B] dark:text-white">
             Belum ada pengumuman atau agenda.
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#7B8D93] dark:text-[#98B4BE]">
             Semua pemberitahuan broadcast dari guru akan tampil secara real-time di sini.
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {displayedList.map((item) => {
+        <div className="space-y-3.5">
+          {displayedList.map((item, idx) => {
             const isUrgent = item.type === 'urgent';
             const isAgenda = item.isNonKbmAgenda;
+            const isPeachCard = !isUrgent && (isAgenda || idx % 2 === 1);
 
             return (
               <div
                 key={item.id}
                 id={`announcement-card-${item.id}`}
-                className={`bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border transition-all shadow-xs ${
+                className={`rounded-[26px] p-4 sm:p-5 border transition-all relative overflow-hidden ${
                   isUrgent
-                    ? 'border-rose-400/80 dark:border-rose-800/80 bg-rose-50/20 dark:bg-rose-950/10'
-                    : isAgenda
-                    ? 'border-indigo-200 dark:border-indigo-900/60'
-                    : 'border-slate-200/80 dark:border-slate-800'
+                    ? 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800'
+                    : isPeachCard
+                    ? 'bg-[#FCEADE] dark:bg-[#193D4A] border-[#F4D3BA] dark:border-[#2A596A] shadow-[0_8px_24px_rgba(22,62,75,0.04)]'
+                    : 'bg-white dark:bg-[#13313C] border-[#ECECE6] dark:border-[#214B59] shadow-[0_8px_26px_rgba(22,62,75,0.05)]'
                 }`}
               >
-                {/* Header author & badges */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
+                {isPeachCard && (
+                  <div className="w-28 h-28 rounded-full border-[6px] border-[#F2C9A8]/45 dark:border-white/[0.04] absolute -right-8 -bottom-8 pointer-events-none" />
+                )}
+
+                <div className="flex items-start justify-between gap-3 relative z-10">
+                  <div className="flex items-center gap-3">
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
                         isUrgent
-                          ? 'bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400'
-                          : isAgenda
-                          ? 'bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-400'
-                          : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400'
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-[#163E4B] text-[#F4A950]'
                       }`}
                     >
                       {isUrgent ? (
@@ -205,24 +206,22 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-xs sm:text-sm text-[#163E4B] dark:text-white">
                           {item.createdByName}
                         </span>
                         {isUrgent && (
-                          <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-rose-500 text-white animate-pulse">
-                            PENTING / SEGERA
+                          <span className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400">
+                            · Penting / Segera
                           </span>
                         )}
                         {isAgenda && (
-                          <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                            Agenda Non-KBM
+                          <span className="text-[11px] font-bold text-[#E59638]">
+                            · Agenda Non-KBM
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400">
-                        {formatDate(item.createdAt)}
-                      </p>
+                      <p className="text-[11px] text-[#7B8D93]">{formatDate(item.createdAt)}</p>
                     </div>
                   </div>
 
@@ -233,7 +232,7 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                           deleteAnnouncement(item.id);
                         }
                       }}
-                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="text-[#6E828A] hover:text-rose-600 p-2 rounded-xl hover:bg-white/70 dark:hover:bg-[#112B35] transition-colors cursor-pointer"
                       title="Hapus Pengumuman"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -241,52 +240,55 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                   )}
                 </div>
 
-                {/* Content */}
-                <div className="mt-3 space-y-1.5">
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                <div className="mt-3 space-y-1.5 relative z-10">
+                  <h4 className="text-base font-extrabold text-[#163E4B] dark:text-white tracking-tight">
                     {item.title}
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  <p className="text-xs sm:text-sm text-[#587079] dark:text-[#C5DBE2] leading-relaxed whitespace-pre-line">
                     {item.content}
                   </p>
                 </div>
 
-                {/* Non-KBM Agenda Details Pill (Date, Time, Location) */}
                 {isAgenda && (
-                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex flex-wrap items-center gap-3 text-xs">
+                  <div className="mt-3 p-3 rounded-2xl bg-white/85 dark:bg-[#0E262F] border border-[#ECECE6] dark:border-[#245363] flex flex-wrap items-center gap-3 text-xs relative z-10">
                     {item.eventDate && (
-                      <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                      <div className="flex items-center gap-1.5 text-[#163E4B] dark:text-white font-bold">
+                        <Calendar className="w-3.5 h-3.5 text-[#F4A950]" />
                         <span>{formatDate(item.eventDate)}</span>
                       </div>
                     )}
                     {item.eventTime && (
-                      <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
-                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                      <div className="flex items-center gap-1.5 text-[#6E828A] dark:text-[#9CB7C0] font-semibold">
+                        <Clock className="w-3.5 h-3.5 text-[#F4A950]" />
                         <span>{item.eventTime}</span>
                       </div>
                     )}
                     {item.location && (
-                      <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
-                        <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                      <div className="flex items-center gap-1.5 text-[#163E4B] dark:text-white font-semibold">
+                        <MapPin className="w-3.5 h-3.5 text-[#E59638]" />
                         <span>{item.location}</span>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Bottom interaction bar */}
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                <div
+                  className={`mt-4 pt-3 border-t flex items-center justify-between text-xs relative z-10 ${
+                    isPeachCard
+                      ? 'border-[#F0CCA9]/60 dark:border-white/10'
+                      : 'border-[#F0F0EC] dark:border-[#214B59]'
+                  }`}
+                >
                   <button
                     onClick={() => toggleLikeAnnouncement(item.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-[#0E262F] hover:bg-white text-[#163E4B] dark:text-white font-bold transition-colors cursor-pointer"
                   >
-                    <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                    <span>{item.likesCount || 0} Siswa Mengetahui</span>
+                    <Heart className="w-3.5 h-3.5 fill-[#F4A950] text-[#F4A950]" />
+                    <span className="tabular-nums">{item.likesCount || 0} Siswa Mengetahui</span>
                   </button>
 
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                    <CheckCircle className="w-3 h-3 text-emerald-500" />
+                  <div className="flex items-center gap-1 text-[11px] text-[#6E828A] dark:text-[#9CB7C0] font-semibold">
+                    <CheckCircle className="w-3.5 h-3.5 text-[#E59638]" />
                     <span>Terbaca Otomatis</span>
                   </div>
                 </div>
@@ -298,31 +300,30 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
 
       {/* Teacher Create Announcement / Agenda Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D242C]/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#13313C] rounded-[28px] max-w-lg w-full p-5 shadow-2xl border border-[#ECECE6] dark:border-[#245363] max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F0EC] dark:border-[#214B59]">
+              <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
                 Buat Pengumuman / Agenda Sekolah
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                className="text-[#7B8D93] hover:text-[#163E4B] dark:hover:text-white text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleCreate} className="mt-4 space-y-3.5">
-              {/* Type selector */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Kategori Informasi
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'info' as const, label: 'Pengumuman Biasa', isNonKbm: false },
-                    { id: 'urgent' as const, label: '🚨 Sangat Penting', isNonKbm: false },
-                    { id: 'agenda' as const, label: '📅 Agenda Non-KBM', isNonKbm: true },
+                    { id: 'info' as const, label: 'Pengumuman', isNonKbm: false },
+                    { id: 'urgent' as const, label: 'Penting', isNonKbm: false },
+                    { id: 'agenda' as const, label: 'Agenda Non-KBM', isNonKbm: true },
                   ].map((t) => (
                     <button
                       key={t.id}
@@ -331,10 +332,10 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                         setType(t.id);
                         setIsNonKbmAgenda(t.isNonKbm);
                       }}
-                      className={`py-2 px-1 text-xs rounded-xl border text-center font-medium transition-all ${
+                      className={`py-2 px-1.5 text-xs rounded-2xl border text-center font-bold transition-all cursor-pointer ${
                         type === t.id
-                          ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                          ? 'border-[#163E4B] bg-[#163E4B] text-white'
+                          : 'border-[#DCE3E6] dark:border-[#275668] text-[#6E828A] dark:text-[#B2CBD4]'
                       }`}
                     >
                       {t.label}
@@ -344,7 +345,7 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Judul Pengumuman *
                 </label>
                 <input
@@ -353,16 +354,16 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                   placeholder={
                     isNonKbmAgenda
                       ? 'Contoh: Peringatan Hari Besar / Kerja Bakti Kelas'
-                      : 'Contoh: Hari ini Kuis mendadak di Ruang Lab'
+                      : 'Contoh: Hari ini Kuis di Ruang Lab'
                   }
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Isi / Pesan Pengumuman *
                 </label>
                 <textarea
@@ -371,65 +372,66 @@ export const AgendaAnnouncementView: React.FC<AgendaAnnouncementViewProps> = ({
                   placeholder="Tuliskan instruksi atau rincian agenda lengkap untuk siswa..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] resize-none"
                 />
               </div>
 
-              {/* Extra fields for Non-KBM Agenda */}
               {isNonKbmAgenda && (
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
-                  <p className="text-xs font-bold text-indigo-600">Rincian Agenda Kegiatan:</p>
+                <div className="p-3.5 rounded-2xl bg-[#FCEADE]/60 dark:bg-[#0E262F] border border-[#F4D3BA] dark:border-[#245363] space-y-2.5">
+                  <p className="text-xs font-extrabold text-[#163E4B] dark:text-[#F4A950]">
+                    Rincian Agenda Kegiatan:
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-0.5">
+                      <label className="text-[11px] font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-0.5">
                         Tanggal Acara
                       </label>
                       <input
                         type="date"
                         value={eventDate}
                         onChange={(e) => setEventDate(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-mono"
+                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white font-mono tabular-nums"
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-0.5">
+                      <label className="text-[11px] font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-0.5">
                         Waktu / Jam Acara
                       </label>
                       <input
                         type="text"
-                        placeholder="Contoh: 07:00 - 08:30 WIB"
+                        placeholder="07:30 - 09:00 WITA"
                         value={eventTime}
                         onChange={(e) => setEventTime(e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400 block mb-0.5">
+                    <label className="text-[11px] font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-0.5">
                       Lokasi / Tempat Acara
                     </label>
                     <input
                       type="text"
-                      placeholder="Contoh: Aula Utama Madrasah, Ruang CBT Lab 1"
+                      placeholder="Contoh: Aula Utama Madrasah"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                      className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#F0F0EC] dark:border-[#214B59] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] hover:bg-[#F7F7F5] dark:hover:bg-[#1B4250] cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_18px_rgba(244,169,80,0.35)] cursor-pointer"
                 >
                   Broadcast ke Siswa
                 </button>

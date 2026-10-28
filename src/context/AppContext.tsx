@@ -17,6 +17,8 @@ import { getWitaNow, minutesToTimeString, timeToMinutes } from '../utils/witaTim
 import {
   INITIAL_TEACHER,
   INITIAL_STUDENT,
+  AVATAR_STUDENT_SVG,
+  AVATAR_TEACHER_SVG,
   DEMO_STUDENTS,
   INITIAL_CLASSES,
   INITIAL_SCHEDULES,
@@ -167,6 +169,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const parsed: User = JSON.parse(saved);
       if (parsed.name.includes('Ahmad Fauzi') || parsed.name.includes('Fathir')) {
         return INITIAL_STUDENT;
+      }
+      if (!parsed.avatarUrl || parsed.avatarUrl.includes('unsplash.com')) {
+        parsed.avatarUrl = parsed.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
       }
       return parsed;
     } catch {
@@ -630,10 +635,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name,
       email,
       role,
-      avatarUrl:
-        role === 'teacher'
-          ? 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=80'
-          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      avatarUrl: role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG,
       identifierNumber: role === 'teacher' ? `NIP. ${idNum}` : `NISN. ${idNum}`,
       className: role === 'student' ? activeClass?.name : undefined,
       schoolName: currentUser.schoolName || 'MTs',
@@ -834,7 +836,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Update currentUser attendanceNumber if provided
     if (attendanceNum !== undefined && attendanceNum !== currentUser.attendanceNumber) {
-      setCurrentUser((prev) => ({ ...prev, attendanceNumber: attendanceNum }));
+      setCurrentUserState((prev) => ({ ...prev, attendanceNumber: attendanceNum }));
     }
 
     // Check if already submitted, then update or create

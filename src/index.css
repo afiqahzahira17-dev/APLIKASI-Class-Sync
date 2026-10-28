@@ -1,17 +1,49 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --petrol-900: #163E4B;
+  --petrol-950: #0E2A33;
+  --petrol-800: #1E4F5F;
+  --amber-accent: #F4A950;
+  --amber-hover: #E59638;
+  --peach-surface: #FCEADE;
+  --peach-border: #F4D3BA;
+  --canvas-bg: #F7F7F5;
+}
+
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F7F7F5;
+    color: #163E4B;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
   }
-  input, textarea, select {
+
+  .dark body {
+    background-color: #0B1E25;
+    color: #F2F6F7;
+  }
+
+  input,
+  textarea,
+  select {
     user-select: text;
   }
 }
 
-/* Custom scrollbar for mobile feel */
+/* Utility for hiding scrollbars cleanly */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Soft custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -20,7 +52,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.4);
+  background: rgba(22, 62, 75, 0.2);
   border-radius: 9999px;
 }
-
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(244, 169, 80, 0.25);
+}

@@ -4,14 +4,10 @@ import {
   Calendar,
   Download,
   Upload,
-  FileText,
   CheckCircle,
   AlertCircle,
   X,
-  Clock,
-  MapPin,
   Sparkles,
-  ArrowRight,
 } from 'lucide-react';
 import {
   generateIcsCalendar,
@@ -33,7 +29,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
   const [activeTab, setActiveTab] = useState<'import' | 'export'>('import');
 
   // Import state
-  const [fileContent, setFileContent] = useState<string>('');
+  const [, setFileContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [parsedCandidates, setParsedCandidates] = useState<ParsedScheduleCandidate[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -80,7 +76,6 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
           setSelectedIndices(new Set());
         } else {
           setParsedCandidates(candidates);
-          // select all by default
           setSelectedIndices(new Set(candidates.map((_, i) => i)));
         }
       } catch (err: any) {
@@ -122,7 +117,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
           classId: activeClass.id,
           subjectName: c.subjectName,
           teacherName: c.teacherName,
-          dayOfWeek: c.dayOfWeek,
+          dayOfWeek: c.dayOfWeek === 7 ? 1 : c.dayOfWeek,
           startTime: c.startTime,
           endTime: c.endTime,
           roomLocation: c.roomLocation,
@@ -151,22 +146,22 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-5 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-[#0B1E25]/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#132F3A] border border-[#E8ECEE] dark:border-[#214B59] rounded-[28px] w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(22,62,75,0.2)] p-5 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-[#163E4B] text-[#F4A950] flex items-center justify-center font-bold">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <h3 className="font-extrabold text-base text-[#163E4B] dark:text-white flex items-center gap-2 flex-wrap">
                 <span>Integrasi Kalender Otomatis</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#FCEADE] text-[#8A4F14] dark:bg-[#F4A950]/20 dark:text-[#F4A950]">
                   Google Calendar & .ics
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#6E828A] dark:text-[#96B2BC]">
                 Impor atau ekspor jadwal KBM {activeClass ? `(${activeClass.name})` : ''} tanpa repot
               </p>
             </div>
@@ -174,20 +169,20 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
 
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 text-[#8A9BA2] hover:text-[#163E4B] dark:hover:text-white rounded-full hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+        <div className="flex rounded-full bg-[#F7F7F5] dark:bg-[#0E242D] p-1 border border-[#E8ECEE] dark:border-[#214B59]">
           <button
             onClick={() => setActiveTab('import')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'import'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                ? 'bg-[#163E4B] text-white shadow-xs'
+                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -195,10 +190,10 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
           </button>
           <button
             onClick={() => setActiveTab('export')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'export'
-                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
-                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                ? 'bg-[#163E4B] text-white shadow-xs'
+                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
             }`}
           >
             <Download className="w-3.5 h-3.5" />
@@ -210,22 +205,22 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
         {activeTab === 'import' && (
           <div className="space-y-3.5">
             {!activeClass ? (
-              <div className="p-4 rounded-xl border border-dashed text-center text-xs text-slate-500">
+              <div className="p-4 rounded-2xl border border-dashed border-[#D5DFE3] dark:border-[#214B59] text-center text-xs text-[#6E828A]">
                 Pilih atau buat kelas terlebih dahulu sebelum mengimpor jadwal.
               </div>
             ) : (
               <>
                 {/* Upload zone */}
-                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-center hover:border-indigo-400 transition-colors bg-slate-50/50 dark:bg-slate-800/40">
-                  <Upload className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                <div className="border-2 border-dashed border-[#D5DFE3] dark:border-[#214B59] rounded-[24px] p-5 text-center hover:border-[#F4A950] transition-colors bg-[#F7F7F5] dark:bg-[#0E242D]">
+                  <Upload className="w-8 h-8 text-[#E59638] mx-auto mb-2" />
+                  <p className="text-xs font-extrabold text-[#163E4B] dark:text-white">
                     Pilih File Kalender (.ics)
                   </p>
-                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto mt-0.5">
+                  <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] max-w-sm mx-auto mt-0.5">
                     Dapat berupa file export dari <b>Google Calendar</b>, <b>Apple Calendar</b>, atau jadwal kalender sekolah.
                   </p>
 
-                  <label className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs">
+                  <label className="inline-flex items-center gap-1.5 mt-3 px-5 py-2 bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] rounded-full text-xs font-extrabold cursor-pointer transition-colors shadow-xs">
                     <span>Pilih File .ics</span>
                     <input
                       type="file"
@@ -236,7 +231,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                   </label>
 
                   {fileName && (
-                    <p className="text-xs font-mono text-indigo-600 dark:text-indigo-400 mt-2 font-medium">
+                    <p className="text-xs font-mono text-[#163E4B] dark:text-[#F4A950] mt-2 font-bold">
                       File terpilih: {fileName}
                     </p>
                   )}
@@ -244,7 +239,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
 
                 {/* Error feedback */}
                 {errorMsg && (
-                  <div className="p-3 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-2xl bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{errorMsg}</span>
                   </div>
@@ -252,7 +247,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
 
                 {/* Success feedback */}
                 {importSuccessCount !== null && (
-                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 shrink-0" />
                     <span>
                       Berhasil mengimpor {importSuccessCount} mata pelajaran ke kelas {activeClass.name}!
@@ -264,12 +259,12 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                 {parsedCandidates.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                      <span className="font-bold text-[#163E4B] dark:text-white">
                         Ditemukan {parsedCandidates.length} Jadwal:
                       </span>
                       <button
                         onClick={handleSelectAll}
-                        className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                        className="text-[#C87A24] dark:text-[#F4A950] font-bold hover:underline cursor-pointer"
                       >
                         {selectedIndices.size === parsedCandidates.length
                           ? 'Batalkan Semua'
@@ -277,41 +272,41 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                       </button>
                     </div>
 
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 border border-[#E8ECEE] dark:border-[#214B59] rounded-2xl p-2 bg-[#F7F7F5] dark:bg-[#0E242D]">
                       {parsedCandidates.map((c, idx) => {
                         const isChecked = selectedIndices.has(idx);
                         return (
                           <div
                             key={idx}
                             onClick={() => handleToggleSelect(idx)}
-                            className={`p-2 rounded-lg border text-xs flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                            className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 cursor-pointer transition-all ${
                               isChecked
-                                ? 'bg-indigo-50/60 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800'
-                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-60'
+                                ? 'bg-[#FCEADE] dark:bg-[#F4A950]/15 border-[#F4D3BA] dark:border-[#F4A950]/35'
+                                : 'bg-white dark:bg-[#132F3A] border-[#E8ECEE] dark:border-[#214B59] opacity-60'
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => {}} // handled by div click
-                                className="rounded text-indigo-600 focus:ring-0"
+                                onChange={() => {}}
+                                className="rounded accent-[#163E4B]"
                               />
                               <div className="min-w-0">
-                                <p className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                                <p className="font-bold text-[#163E4B] dark:text-white truncate">
                                   {c.subjectName}
                                 </p>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                <p className="text-[10px] text-[#6E828A] dark:text-[#96B2BC] truncate">
                                   {c.teacherName} • {c.roomLocation}
                                 </p>
                               </div>
                             </div>
 
                             <div className="text-right shrink-0">
-                              <span className="inline-block px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-bold text-[10px] text-slate-700 dark:text-slate-300">
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-[#163E4B] text-white font-bold text-[10px]">
                                 {daysLabel[c.dayOfWeek] || 'Senin'}
                               </span>
-                              <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                              <p className="text-[10px] font-mono tabular-nums text-[#6E828A] dark:text-[#96B2BC] mt-0.5">
                                 {c.startTime} - {c.endTime}
                               </p>
                             </div>
@@ -323,7 +318,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                     <button
                       onClick={handleExecuteImport}
                       disabled={isImporting || selectedIndices.size === 0}
-                      className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full py-2.5 rounded-full bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] text-xs font-extrabold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>
@@ -343,37 +338,37 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
         {activeTab === 'export' && (
           <div className="space-y-4">
             {!activeClass ? (
-              <div className="p-4 rounded-xl border border-dashed text-center text-xs text-slate-500">
+              <div className="p-4 rounded-2xl border border-dashed border-[#D5DFE3] dark:border-[#214B59] text-center text-xs text-[#6E828A]">
                 Pilih kelas terlebih dahulu untuk mengekspor jadwal.
               </div>
             ) : (
               <>
-                <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 space-y-2">
+                <div className="p-4 rounded-[24px] bg-[#FCEADE] dark:bg-[#F4A950]/15 border border-[#F4D3BA] dark:border-[#F4A950]/30 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Download className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                    <Download className="w-5 h-5 text-[#E59638]" />
+                    <h4 className="font-extrabold text-sm text-[#163E4B] dark:text-[#FCEADE]">
                       Ekspor Jadwal {activeClass.name} ({classSchedules.length} Sesi)
                     </h4>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <p className="text-xs text-[#4B636D] dark:text-[#D2E2E8] leading-relaxed">
                     File <b>.ics</b> berulang mingguan ini kompatibel 100% dengan:
                   </p>
-                  <ul className="grid grid-cols-2 gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200">
+                  <ul className="grid grid-cols-2 gap-1.5 text-xs font-bold text-[#163E4B] dark:text-white">
                     <li className="flex items-center gap-1.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <CheckCircle className="w-3.5 h-3.5 text-[#E59638]" />
                       <span>Google Calendar (Android/Web)</span>
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <CheckCircle className="w-3.5 h-3.5 text-[#E59638]" />
                       <span>Apple Calendar (iPhone/iPad/Mac)</span>
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      <CheckCircle className="w-3.5 h-3.5 text-[#E59638]" />
                       <span>Microsoft Outlook</span>
                     </li>
                     <li className="flex items-center gap-1.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Kalender bawaan HP Xiaomi / Samsung</span>
+                      <CheckCircle className="w-3.5 h-3.5 text-[#E59638]" />
+                      <span>Kalender bawaan HP</span>
                     </li>
                   </ul>
                 </div>
@@ -381,7 +376,7 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                 <button
                   onClick={handleExportIcs}
                   disabled={classSchedules.length === 0}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 rounded-full bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] text-xs font-extrabold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>
@@ -391,11 +386,11 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
                   </span>
                 </button>
 
-                <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  <p className="font-bold text-slate-800 dark:text-slate-100">
+                <div className="bg-[#F7F7F5] dark:bg-[#0E242D] p-3.5 rounded-[22px] border border-[#E8ECEE] dark:border-[#214B59] space-y-1 text-xs text-[#4B636D] dark:text-[#C5DBE2]">
+                  <p className="font-extrabold text-[#163E4B] dark:text-white">
                     Cara Pasang di Google Calendar HP:
                   </p>
-                  <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-[#6E828A] dark:text-[#96B2BC]">
                     <li>Klik <b>Unduh File Kalender</b> di atas.</li>
                     <li>Buka file hasil unduhan langsung di HP Anda.</li>
                     <li>Pilih <b>"Tambahkan Semua ke Kalender"</b>.</li>
@@ -408,10 +403,10 @@ export const CalendarImportExportModal: React.FC<CalendarImportExportModalProps>
         )}
 
         {/* Footer */}
-        <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-slate-800">
+        <div className="pt-2 flex justify-end border-t border-[#E8ECEE] dark:border-[#214B59]">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold"
+            className="px-5 py-2 bg-[#F7F7F5] hover:bg-[#E8ECEE] dark:bg-[#0E242D] dark:hover:bg-[#193B48] text-[#163E4B] dark:text-white rounded-full text-xs font-bold cursor-pointer transition-colors"
           >
             Tutup
           </button>

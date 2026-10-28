@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Assignment, Submission, AssignmentAttachment } from '../types';
+import { AVATAR_STUDENT_SVG } from '../data/mockData';
 import { EmptyClassState } from './EmptyClassState';
 import { TeacherPhoneVerificationModal } from './TeacherPhoneVerificationModal';
 import { GamificationModal } from './GamificationModal';
@@ -12,31 +13,21 @@ import {
   Calendar,
   FileText,
   UploadCloud,
-  CheckCircle,
   AlertCircle,
   Star,
   Download,
   Trash2,
-  Eye,
-  User,
   MessageSquare,
-  Filter,
   Check,
   Paperclip,
-  FileSpreadsheet,
-  FileCheck,
   Sparkles,
   MessageCircle,
-  ShieldCheck,
   AlertTriangle,
-  ExternalLink,
   Flame,
   CheckCircle2,
   Pencil,
   ListOrdered,
-  BookOpen,
   Trophy,
-  Info,
 } from 'lucide-react';
 
 interface AssignmentViewProps {
@@ -53,18 +44,14 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     updateAssignment,
     deleteAssignment,
     submitAssignment,
-    gradeSubmission,
     verifySubmission,
-    expiredUnsubmittedAssignments,
     userXp,
   } = useApp();
 
-  // Filters for student: 'all' | 'pending' | 'submitted' | 'expired' | 'graded'
   const [filterStatus, setFilterStatus] = useState<
     'all' | 'pending' | 'submitted' | 'expired' | 'graded'
   >('all');
 
-  // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [selectedAssignmentForSubmit, setSelectedAssignmentForSubmit] = useState<Assignment | null>(
@@ -74,7 +61,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     null
   );
 
-  // Student upload form
   const [uploadFile, setUploadFile] = useState<{
     name: string;
     size: string;
@@ -84,14 +70,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const [studentNote, setStudentNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Teacher create assignment form
   const [newTitle, setNewTitle] = useState('');
   const [newSubject, setNewSubject] = useState("Al-Qur'an Hadits");
   const [newDescription, setNewDescription] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [attachmentName, setAttachmentName] = useState('');
 
-  // Teacher Edit assignment form & modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -101,24 +85,19 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
   const [editAttachmentName, setEditAttachmentName] = useState('');
   const [editMaxScore, setEditMaxScore] = useState<number>(100);
 
-  // Student upload attendance number
   const [attendanceNumberInput, setAttendanceNumberInput] = useState<number>(
     currentUser.attendanceNumber || 1
   );
 
-  // Teacher Review sorting: 'attendance' (default) | 'time'
   const [sortSubmissionBy, setSortSubmissionBy] = useState<'attendance' | 'time'>('attendance');
 
-  // XP Explanation card & Gamification modal
   const [showXpGuide, setShowXpGuide] = useState(false);
   const [showGamificationModal, setShowGamificationModal] = useState(false);
 
-  // Teacher grading & verification modal state
   const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
   const [scoreInput, setScoreInput] = useState<number>(90);
   const [feedbackInput, setFeedbackInput] = useState('Bagus sekali, terus tingkatkan!');
 
-  // Filter assignments for active class
   const classAssignments = useMemo(() => {
     if (!activeClass) return [];
     return assignments
@@ -126,7 +105,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   }, [assignments, activeClass]);
 
-  // Student specific logic: get submission map
   const mySubmissionsMap = useMemo(() => {
     const map = new Map<string, Submission>();
     submissions
@@ -137,7 +115,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     return map;
   }, [submissions, currentUser.id]);
 
-  // Filtered assignments for student
   const displayedAssignments = useMemo(() => {
     if (currentUser.role === 'teacher') return classAssignments;
 
@@ -155,7 +132,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     });
   }, [classAssignments, currentUser.role, filterStatus, mySubmissionsMap]);
 
-  // Expired unsubmitted count for current student
   const studentExpiredCount = useMemo(() => {
     if (currentUser.role !== 'student') return 0;
     const now = new Date();
@@ -165,7 +141,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     }).length;
   }, [classAssignments, mySubmissionsMap, currentUser.role]);
 
-  // Handlers for Student Submission
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -203,16 +178,15 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
       setUploadFile(null);
       setStudentNote('');
 
-      // Confetti burst for rewarding user on completion!
       confetti({
         particleCount: 80,
         spread: 70,
         origin: { y: 0.6 },
+        colors: ['#F4A950', '#163E4B', '#FCEADE'],
       });
     }, 500);
   };
 
-  // Handlers for Teacher Assignment Creation
   const handleCreateAssignment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeClass || !newTitle.trim() || !newDueDate) return;
@@ -244,7 +218,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     setAttachmentName('');
   };
 
-  // Handlers for Teacher Assignment Edit
   const handleOpenEditAssignment = (assignment: Assignment) => {
     setEditingAssignment(assignment);
     setEditTitle(assignment.title);
@@ -291,7 +264,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     setEditingAssignment(null);
   };
 
-  // Teacher Verifies and Awards Glowing XP
   const handleVerifySubmissionAction = (
     submissionId: string,
     status: 'verified' | 'rejected',
@@ -305,6 +277,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
         particleCount: 70,
         spread: 60,
         origin: { y: 0.5 },
+        colors: ['#F4A950', '#163E4B', '#FCEADE'],
       });
     }
   };
@@ -324,7 +297,6 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     }
   };
 
-  // WhatsApp Link Helper
   const getTeacherWaLink = (assignmentTitle?: string) => {
     const raw = activeClass?.teacherPhone || currentUser.phone || '';
     const clean = raw.replace(/[^0-9]/g, '');
@@ -349,53 +321,49 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Top Banner & Action */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 flex-wrap">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <div
-              className={`p-1.5 rounded-lg ${
-                currentUser.role === 'teacher'
-                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-              }`}
-            >
+      {/* Top Hero Banner in Deep Petrol #163E4B matching reference card */}
+      <div className="bg-[#163E4B] rounded-[28px] p-5 text-white shadow-[0_14px_34px_rgba(22,62,75,0.2)] flex items-center justify-between gap-3 flex-wrap relative overflow-hidden">
+        <div className="w-36 h-36 rounded-full border-[7px] border-white/[0.05] absolute -right-10 -bottom-10 pointer-events-none" />
+
+        <div className="space-y-1 relative z-10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="p-1.5 rounded-xl bg-white/12 text-[#F4A950]">
               <CheckSquare className="w-4 h-4" />
             </div>
-            <h3 className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100">
-              {currentUser.role === 'teacher'
-                ? 'Portal Guru: Kelola, Periksa & Verifikasi Tugas'
-                : 'Tugas Belajar & Pengumpulan Dokumen'}
+            <h3 className="font-extrabold text-sm sm:text-base text-white tracking-tight">
+              {currentUser.role === 'teacher' ? (
+                <>
+                  Portal Guru: Kelola & <span className="text-[#F4A950]">Nilai Tugas</span>
+                </>
+              ) : (
+                <>
+                  Tugas Belajar & <span className="text-[#F4A950]">Pengumpulan</span>
+                </>
+              )}
             </h3>
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
-                currentUser.role === 'teacher'
-                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-              }`}
-            >
-              {currentUser.role === 'teacher' ? 'Mode Pendidik' : 'Mode Siswa'}
+            <span className="text-[11px] font-semibold text-[#FCEADE]/80">
+              · {currentUser.role === 'teacher' ? 'Mode Pendidik' : 'Mode Siswa'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-white/75">
             {currentUser.role === 'teacher'
-              ? 'Terbitkan tugas baru, periksa berkas siswa, dan verifikasi untuk menyalakan XP siswa'
-              : 'Pantau tenggat waktu, konsultasi via WhatsApp guru, dan kumpulkan tugas tepat waktu'}
+              ? 'Terbitkan tugas baru, edit soal, urutkan sesuai nomor absen, dan berikan nilai serta XP'
+              : 'Pantau tenggat waktu, konsultasi via WhatsApp guru, dan kumpulkan tugas sesuai nomor absen'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap relative z-10">
           {/* XP Info Button */}
           <button
             onClick={() => setShowXpGuide((prev) => !prev)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold transition-colors shrink-0 cursor-pointer whitespace-nowrap ${
               showXpGuide
-                ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
-                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60 hover:bg-amber-100'
+                ? 'bg-[#FCEADE] text-[#163E4B] shadow-xs'
+                : 'bg-white/12 text-[#FCEADE] hover:bg-white/20'
             }`}
             title="Penjelasan Sistem XP & Prestasi Belajar"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <Sparkles className="w-3.5 h-3.5 text-[#F4A950]" />
             <span>Penjelasan XP</span>
           </button>
 
@@ -403,12 +371,11 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
             <>
               <button
                 onClick={() => setShowPhoneModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-semibold shadow-xs transition-colors shrink-0 cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-white/12 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-colors shrink-0 cursor-pointer whitespace-nowrap"
                 title="Atur & Verifikasi Nomor WhatsApp Guru"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
+                <MessageCircle className="w-3.5 h-3.5 text-[#F4A950]" />
                 <span>Nomor WA Guru</span>
-                {currentUser.isPhoneVerified && <span className="text-[10px]">✅</span>}
               </button>
 
               <button
@@ -425,47 +392,45 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   setNewDueDate(isoLocal);
                   setShowCreateModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors shrink-0 cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Buat Tugas Baru</span>
+                <span>Buat Tugas Baru</span>
               </button>
             </>
           ) : (
-            /* Student: Verified Teacher WA consultation button */
             activeClass.isTeacherVerified && activeClass.teacherPhone ? (
               <a
                 href={getTeacherWaLink()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#F4A950] hover:bg-[#E59638] text-white rounded-full text-xs font-bold shadow-[0_6px_16px_rgba(244,169,80,0.35)] transition-colors shrink-0 whitespace-nowrap"
                 title="Chat Wali Kelas via WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
                 <span>Chat Guru (WA)</span>
-                <span className="text-[10px] bg-white/20 px-1 rounded-sm">Resmi</span>
               </a>
             ) : null
           )}
         </div>
       </div>
 
-      {/* XP System Explanation Card */}
+      {/* XP System Explanation Card in Soft Warm Peach #FCEADE */}
       {showXpGuide && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-indigo-500/10 rounded-2xl p-4 border border-amber-300 dark:border-amber-900/60 shadow-xs space-y-3 animate-in fade-in">
+        <div className="bg-[#FCEADE] dark:bg-[#193D4A] rounded-[26px] p-4 sm:p-5 border border-[#F4D3BA] dark:border-[#2A596A] shadow-xs space-y-3.5 animate-in fade-in">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center font-bold shrink-0">
-                <Sparkles className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-2xl bg-[#163E4B] text-[#F4A950] flex items-center justify-center font-bold shrink-0">
+                <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>Panduan & Penjelasan Sistem XP (Experience Points)</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                    {userXp} XP Anda
+                <h4 className="font-extrabold text-sm text-[#163E4B] dark:text-white flex items-center gap-2 flex-wrap">
+                  <span>Panduan & Penjelasan Sistem XP</span>
+                  <span className="text-xs font-bold text-[#E59638] tabular-nums">
+                    · {userXp} XP Anda
                   </span>
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
+                <p className="text-xs text-[#5B727B] dark:text-[#C5DBE2]">
                   XP adalah poin keaktifan, kedisiplinan, dan prestasi akademik siswa di ClassyWork.
                 </p>
               </div>
@@ -473,41 +438,41 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
             <button
               onClick={() => setShowGamificationModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-full bg-[#163E4B] hover:bg-[#10303B] text-white font-bold text-xs shadow-xs transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
             >
-              <Trophy className="w-3.5 h-3.5" />
+              <Trophy className="w-3.5 h-3.5 text-[#F4A950]" />
               <span>Lihat Lencana & Level</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/40">
-              <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold mb-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#13313C] border border-[#F0D4BE] dark:border-[#245363]">
+              <div className="flex items-center gap-1.5 text-[#163E4B] dark:text-white font-extrabold mb-1">
+                <CheckCircle2 className="w-4 h-4 text-[#E59638] shrink-0" />
                 <span>+75 XP Tugas Tepat Waktu</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                XP otomatis menyala dan bertambah ketika siswa mengumpulkan tugas sebelum batas tenggat dan diverifikasi guru.
+              <p className="text-[11px] text-[#6E828A] dark:text-[#9CB7C0] leading-relaxed">
+                XP otomatis bertambah ketika siswa mengumpulkan tugas sebelum batas tenggat dan diverifikasi guru.
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900/40">
-              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-bold mb-1">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#13313C] border border-[#F0D4BE] dark:border-[#245363]">
+              <div className="flex items-center gap-1.5 text-[#163E4B] dark:text-white font-extrabold mb-1">
+                <Star className="w-4 h-4 text-[#F4A950] fill-[#F4A950] shrink-0" />
                 <span>+50 XP Bonus Nilai Unggul</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Bonus ekstra bagi siswa yang meraih nilai tugas <b>≥ 85</b> dari penilaian guru.
+              <p className="text-[11px] text-[#6E828A] dark:text-[#9CB7C0] leading-relaxed">
+                Bonus ekstra bagi siswa yang meraih nilai tugas minimal <b>85</b> dari penilaian guru.
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900/40">
-              <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-bold mb-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-[#13313C] border border-[#F0D4BE] dark:border-[#245363]">
+              <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-extrabold mb-1">
                 <Flame className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>-30 XP Pinalti Kadaluwarsa</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Pengurangan XP otomatis jika tugas melewati batas tenggat waktu KBM tanpa pengumpulan siswa.
+              <p className="text-[11px] text-[#6E828A] dark:text-[#9CB7C0] leading-relaxed">
+                Pengurangan XP otomatis jika tugas melewati tenggat waktu KBM tanpa pengumpulan siswa.
               </p>
             </div>
           </div>
@@ -516,24 +481,24 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Warning Banner: Expired Assignments Penalty for Student */}
       {currentUser.role === 'student' && studentExpiredCount > 0 && (
-        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-start justify-between gap-3 text-rose-900 dark:text-rose-200 animate-in fade-in">
+        <div className="p-4 rounded-[24px] bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-start justify-between gap-3 text-rose-900 dark:text-rose-200">
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div>
               <h4 className="font-bold text-xs sm:text-sm text-rose-800 dark:text-rose-200">
-                Peringatan: {studentExpiredCount} Tugas Telah Kadaluwarsa!
+                Peringatan: {studentExpiredCount} Tugas Telah Kadaluwarsa
               </h4>
               <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
-                Tugas yang melewati tenggat waktu tanpa dikumpulkan dikenakan pinalti pemotongan{' '}
-                <b>-{studentExpiredCount * 30} XP</b>. Segera hubungi guru atau kumpulkan dengan status terlambat.
+                Tugas yang melewati tenggat waktu tanpa dikumpulkan dikenakan pinalti{' '}
+                <b className="tabular-nums">-{studentExpiredCount * 30} XP</b>.
               </p>
             </div>
           </div>
           <button
             onClick={() => setFilterStatus('expired')}
-            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer whitespace-nowrap"
           >
-            Lihat Tugas Kadaluwarsa
+            Lihat Tugas
           </button>
         </div>
       )}
@@ -547,22 +512,22 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
             { id: 'submitted' as const, label: 'Sudah Dikirim' },
             {
               id: 'expired' as const,
-              label: `Kadaluwarsa (${studentExpiredCount}) ⚠️`,
+              label: `Kadaluwarsa (${studentExpiredCount})`,
               highlight: studentExpiredCount > 0,
             },
-            { id: 'graded' as const, label: 'Sudah Dinilai ⭐' },
+            { id: 'graded' as const, label: 'Sudah Dinilai' },
           ].map((f) => (
             <button
               key={f.id}
               onClick={() => setFilterStatus(f.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 filterStatus === f.id
                   ? f.id === 'expired'
                     ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-[#163E4B] text-white shadow-xs'
                   : f.highlight
-                  ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 hover:bg-rose-200'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300'
+                  : 'bg-white dark:bg-[#13313C] border border-[#EAEAE4] dark:border-[#214B59] text-[#6E828A] dark:text-[#9CB7C0] hover:text-[#163E4B]'
               }`}
             >
               {f.label}
@@ -573,79 +538,87 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Assignment List */}
       {displayedAssignments.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-dashed border-slate-300 dark:border-slate-800 text-center space-y-2">
-          <CheckSquare className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600" />
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#13313C] rounded-[26px] p-8 border border-dashed border-[#D8E0E3] dark:border-[#245363] text-center space-y-2 shadow-[0_8px_24px_rgba(22,62,75,0.04)]">
+          <CheckSquare className="w-10 h-10 mx-auto text-[#B5C4C9] dark:text-[#577C89]" />
+          <p className="text-sm font-bold text-[#163E4B] dark:text-white">
             {filterStatus === 'expired'
               ? 'Hebat! Tidak ada tugas kadaluwarsa pada kelas ini.'
               : 'Tidak ada tugas pada kategori ini.'}
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#7B8D93] dark:text-[#98B4BE]">
             {currentUser.role === 'student'
               ? 'Semua tugas telah dikerjakan atau belum ada tugas baru dari guru.'
               : 'Belum ada tugas yang diterbitkan untuk kelas ini.'}
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {displayedAssignments.map((assignment) => {
+        <div className="space-y-3.5">
+          {displayedAssignments.map((assignment, idx) => {
             const mySubmission = mySubmissionsMap.get(assignment.id);
             const isPastDue = new Date() > new Date(assignment.dueDate);
             const isExpiredUnsubmitted = !mySubmission && isPastDue;
 
-            // Calculate submission statistics for teacher
             const classSubmissions = submissions.filter((s) => s.assignmentId === assignment.id);
             const pendingVerifyCount = classSubmissions.filter(
               (s) => s.status === 'pending_verification' || !s.status
             ).length;
             const verifiedCount = classSubmissions.filter((s) => s.status === 'verified').length;
+            const isPeachCard = !isExpiredUnsubmitted && idx % 2 === 1;
 
             return (
               <div
                 key={assignment.id}
                 id={`assignment-card-${assignment.id}`}
-                className={`rounded-2xl p-4 sm:p-5 border transition-all shadow-xs ${
+                className={`rounded-[26px] p-4 sm:p-5 border transition-all relative overflow-hidden ${
                   isExpiredUnsubmitted
-                    ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60 ring-1 ring-rose-400/30'
-                    : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'bg-rose-50/70 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60'
+                    : isPeachCard
+                    ? 'bg-[#FCEADE] dark:bg-[#193D4A] border-[#F4D3BA] dark:border-[#2A596A] shadow-[0_8px_24px_rgba(22,62,75,0.04)]'
+                    : 'bg-white dark:bg-[#13313C] border-[#ECECE6] dark:border-[#214B59] shadow-[0_8px_26px_rgba(22,62,75,0.05)]'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/50">
+                {isPeachCard && (
+                  <div className="w-28 h-28 rounded-full border-[6px] border-[#F2C9A8]/45 dark:border-white/[0.04] absolute -right-8 -bottom-8 pointer-events-none" />
+                )}
+
+                <div className="flex items-start justify-between gap-3 relative z-10">
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <span className="font-extrabold text-[#E59638]">
                         {assignment.subjectName}
                       </span>
 
-                      {/* Status indicator badges */}
                       {currentUser.role === 'student' && (
                         <>
+                          <span>·</span>
                           {mySubmission ? (
                             mySubmission.status === 'verified' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 animate-pulse">
-                                <Sparkles className="w-3 h-3 text-amber-600 fill-amber-500" />
-                                Terverifikasi Guru (+XP Menyala!)
-                                {mySubmission.grade !== undefined && ` • ${mySubmission.grade}/100`}
+                              <span className="inline-flex items-center gap-1 font-bold text-[#163E4B] dark:text-[#FCEADE]">
+                                <Sparkles className="w-3 h-3 text-[#F4A950]" />
+                                Terverifikasi Guru
+                                {mySubmission.grade !== undefined && (
+                                  <span className="tabular-nums">({mySubmission.grade}/100)</span>
+                                )}
                               </span>
                             ) : mySubmission.status === 'rejected' ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300">
+                              <span className="inline-flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400">
                                 <AlertCircle className="w-3 h-3" />
-                                Perlu Perbaikan (Guru)
+                                Perlu Perbaikan
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200">
-                                <Clock className="w-3 h-3" />
-                                Menunggu Verifikasi Guru ⏳
+                              <span className="inline-flex items-center gap-1 font-semibold text-[#6E828A] dark:text-[#9CB7C0]">
+                                <Clock className="w-3 h-3 text-[#F4A950]" />
+                                Menunggu Verifikasi Guru
                               </span>
                             )
                           ) : isExpiredUnsubmitted ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-600 text-white shadow-xs">
+                            <span className="inline-flex items-center gap-1 font-extrabold text-rose-600 dark:text-rose-400">
                               <Flame className="w-3 h-3" />
-                              Kadaluwarsa (-30 XP Pinalti)
+                              Kadaluwarsa (-30 XP)
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
-                              <Clock className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1 font-semibold text-[#6E828A] dark:text-[#9CB7C0]">
+                              <Clock className="w-3 h-3 text-[#F4A950]" />
                               Belum Dikumpulkan
                             </span>
                           )}
@@ -653,29 +626,28 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                       )}
 
                       {currentUser.role === 'teacher' && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
-                            Total Kiriman: {classSubmissions.length}
-                          </span>
+                        <div className="flex items-center gap-2 flex-wrap text-[#6E828A] dark:text-[#B4CED7] font-semibold">
+                          <span>·</span>
+                          <span className="tabular-nums">Kiriman: {classSubmissions.length}</span>
                           {pendingVerifyCount > 0 && (
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 animate-pulse">
-                              ⏳ {pendingVerifyCount} Menunggu Verifikasi
+                            <span className="text-[#E59638] font-bold tabular-nums">
+                              · {pendingVerifyCount} Menunggu Nilai
                             </span>
                           )}
                           {verifiedCount > 0 && (
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                              ✅ {verifiedCount} Terverifikasi
+                            <span className="text-[#163E4B] dark:text-[#FCEADE] font-bold tabular-nums">
+                              · {verifiedCount} Terverifikasi
                             </span>
                           )}
                         </div>
                       )}
                     </div>
 
-                    <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white pt-1">
+                    <h4 className="text-base sm:text-lg font-extrabold text-[#163E4B] dark:text-white pt-0.5 tracking-tight">
                       {assignment.title}
                     </h4>
 
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-[#5E747D] dark:text-[#B2CBD4] line-clamp-2 leading-relaxed">
                       {assignment.description}
                     </p>
                   </div>
@@ -685,7 +657,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                       <button
                         id={`edit-assignment-btn-${assignment.id}`}
                         onClick={() => handleOpenEditAssignment(assignment)}
-                        className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="text-[#6E828A] hover:text-[#163E4B] dark:hover:text-white p-2 rounded-xl hover:bg-white/70 dark:hover:bg-[#112B35] transition-colors cursor-pointer"
                         title="Edit Tugas Ini"
                       >
                         <Pencil className="w-4 h-4" />
@@ -696,7 +668,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                             deleteAssignment(assignment.id);
                           }
                         }}
-                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+                        className="text-[#6E828A] hover:text-rose-600 p-2 rounded-xl hover:bg-white/70 dark:hover:bg-[#112B35] transition-colors shrink-0 cursor-pointer"
                         title="Hapus Tugas"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -705,52 +677,49 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   )}
                 </div>
 
-                {/* Expired Unsubmitted Warning Notice */}
                 {currentUser.role === 'student' && isExpiredUnsubmitted && (
-                  <div className="mt-2.5 p-2.5 rounded-xl bg-rose-100/70 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-center justify-between gap-2">
+                  <div className="mt-2.5 p-2.5 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-center justify-between gap-2 relative z-10">
                     <span className="font-semibold text-[11px]">
-                      ⚠️ Tugas telah kadaluwarsa! Pengurangan 30 XP telah dicatat pada sistem nilai.
+                      Tugas telah melewati tenggat. Pengurangan 30 XP dicatat pada sistem nilai.
                     </span>
-                    <span className="text-[10px] font-bold bg-rose-700 text-white px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-extrabold tabular-nums text-rose-700 dark:text-rose-300">
                       -30 XP
                     </span>
                   </div>
                 )}
 
-                {/* Attachments from teacher */}
                 {assignment.attachments && assignment.attachments.length > 0 && (
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                      <Paperclip className="w-3 h-3" /> Lampiran Soal/Materi:
+                  <div className="mt-3 flex items-center gap-2 flex-wrap relative z-10">
+                    <span className="text-[11px] text-[#6E828A] dark:text-[#98B4BE] font-semibold flex items-center gap-1">
+                      <Paperclip className="w-3 h-3 text-[#F4A950]" /> Lampiran Soal:
                     </span>
                     {assignment.attachments.map((att, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-white/80 dark:bg-[#0F2730] border border-[#E6EAEB] dark:border-[#245363] text-[#163E4B] dark:text-[#E5F0F3] font-semibold"
                       >
-                        <FileText className="w-3 h-3 text-indigo-500" />
+                        <FileText className="w-3 h-3 text-[#F4A950]" />
                         <span className="max-w-[150px] truncate">{att.name}</span>
-                        <span className="text-[10px] text-slate-400">({att.size})</span>
+                        <span className="text-[10px] text-[#7B8D93]">({att.size})</span>
                       </span>
                     ))}
                   </div>
                 )}
 
-                {/* Feedback note if graded/verified */}
                 {currentUser.role === 'student' && mySubmission?.feedback && (
-                  <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="mt-3 p-3.5 rounded-2xl bg-white/85 dark:bg-[#0E262F] border border-[#F0D3B8] dark:border-[#285768] relative z-10">
+                    <div className="flex items-start gap-2.5">
+                      <MessageSquare className="w-4 h-4 text-[#F4A950] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
-                          <span>Ulasan & Penilaian Guru:</span>
+                        <p className="text-xs font-extrabold text-[#163E4B] dark:text-white flex items-center gap-2">
+                          <span>Ulasan & Nilai Guru:</span>
                           {mySubmission.grade !== undefined && (
-                            <span className="px-1.5 py-0.2 bg-amber-200 dark:bg-amber-900 rounded text-[11px] font-black">
+                            <span className="text-[#E59638] font-black tabular-nums">
                               {mySubmission.grade} / 100
                             </span>
                           )}
                         </p>
-                        <p className="text-xs text-amber-900 dark:text-amber-200/90 mt-0.5 italic">
+                        <p className="text-xs text-[#5A717A] dark:text-[#C5DBE2] mt-0.5">
                           "{mySubmission.feedback}"
                         </p>
                       </div>
@@ -759,33 +728,37 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                 )}
 
                 {/* Bottom Bar: Due Date and Actions */}
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                <div
+                  className={`mt-4 pt-3 border-t flex items-center justify-between flex-wrap gap-2 relative z-10 ${
+                    isPeachCard
+                      ? 'border-[#F0CCA9]/60 dark:border-white/10'
+                      : 'border-[#F0F0EC] dark:border-[#214B59]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs text-[#6E828A] dark:text-[#9CB7C0]">
+                    <Calendar className="w-3.5 h-3.5 text-[#F4A950]" />
                     <span>Tenggat:</span>
                     <span
-                      className={`font-semibold ${
+                      className={`font-bold ${
                         isPastDue
                           ? 'text-rose-600 dark:text-rose-400'
-                          : 'text-slate-700 dark:text-slate-300'
+                          : 'text-[#163E4B] dark:text-white'
                       }`}
                     >
                       {formatDueDate(assignment.dueDate)}
                     </span>
                   </div>
 
-                  {/* Actions depending on role */}
-                  <div className="flex items-center gap-2">
-                    {/* WhatsApp teacher consultation button for student */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     {currentUser.role === 'student' && (
                       <a
                         href={getTeacherWaLink(assignment.title)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-[#163E4B] text-white hover:bg-[#10303B] transition-colors whitespace-nowrap"
                         title="Tanya guru mengenai tugas ini via WhatsApp"
                       >
-                        <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                        <MessageCircle className="w-3.5 h-3.5 text-[#F4A950]" />
                         <span className="hidden sm:inline">Tanya WA Guru</span>
                       </a>
                     )}
@@ -798,12 +771,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                           setUploadFile(null);
                           setStudentNote(mySubmission?.studentNote || '');
                         }}
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer ${
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold shadow-xs transition-colors cursor-pointer whitespace-nowrap ${
                           isExpiredUnsubmitted
                             ? 'bg-rose-600 hover:bg-rose-700 text-white'
                             : mySubmission
-                            ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            ? 'bg-white dark:bg-[#0E262F] border border-[#DCE3E6] dark:border-[#275668] text-[#163E4B] dark:text-white hover:border-[#F4A950]'
+                            : 'bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_16px_rgba(244,169,80,0.35)]'
                         }`}
                       >
                         <UploadCloud className="w-3.5 h-3.5" />
@@ -811,28 +784,28 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                           {mySubmission
                             ? 'Ubah Kiriman Tugas'
                             : isExpiredUnsubmitted
-                            ? 'Kumpulkan Terlambat (Izin Guru)'
+                            ? 'Kumpulkan Terlambat'
                             : 'Kumpulkan Tugas'}
                         </span>
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           id={`edit-assignment-bottom-btn-${assignment.id}`}
                           onClick={() => handleOpenEditAssignment(assignment)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-[#0E262F] hover:bg-[#F7F7F5] text-[#163E4B] dark:text-white border border-[#DCE3E6] dark:border-[#275668] transition-colors cursor-pointer whitespace-nowrap"
                           title="Edit Tugas Ini"
                         >
-                          <Pencil className="w-3.5 h-3.5 text-indigo-500" />
+                          <Pencil className="w-3.5 h-3.5 text-[#E59638]" />
                           <span>Edit Tugas</span>
                         </button>
                         <button
                           id={`review-btn-${assignment.id}`}
                           onClick={() => setSelectedAssignmentForReview(assignment)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-[#163E4B] hover:bg-[#10303B] text-white shadow-xs transition-colors cursor-pointer whitespace-nowrap"
                         >
-                          <ListOrdered className="w-3.5 h-3.5" />
-                          <span>
+                          <ListOrdered className="w-3.5 h-3.5 text-[#F4A950]" />
+                          <span className="tabular-nums">
                             Nilai & Urut Absen ({classSubmissions.length})
                           </span>
                         </button>
@@ -848,48 +821,48 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Student Submit Assignment Modal */}
       {selectedAssignmentForSubmit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D242C]/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#13313C] rounded-[28px] max-w-lg w-full p-5 shadow-2xl border border-[#ECECE6] dark:border-[#245363] max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F0EC] dark:border-[#214B59]">
               <div>
-                <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-[#E59638]">
                   Pengumpulan Tugas (Siswa)
                 </span>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
                   {selectedAssignmentForSubmit.title}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedAssignmentForSubmit(null)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                className="text-[#7B8D93] hover:text-[#163E4B] dark:hover:text-white text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSubmitTask} className="mt-4 space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-xs space-y-1">
-                <p className="font-semibold text-slate-700 dark:text-slate-300">
+              <div className="bg-[#FCEADE]/60 dark:bg-[#0E262F] p-3.5 rounded-2xl border border-[#F4D3BA] dark:border-[#214B59] text-xs space-y-1">
+                <p className="font-bold text-[#163E4B] dark:text-white">
                   Mata Pelajaran: {selectedAssignmentForSubmit.subjectName}
                 </p>
-                <p className="text-slate-500">
+                <p className="text-[#6E828A] dark:text-[#9CB7C0]">
                   Tenggat:{' '}
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                  <span className="font-bold text-[#163E4B] dark:text-white">
                     {formatDueDate(selectedAssignmentForSubmit.dueDate)}
                   </span>
                 </p>
-                <p className="text-slate-600 dark:text-slate-400 mt-1 italic">
+                <p className="text-[#5A717A] dark:text-[#B5CED6] mt-1">
                   "{selectedAssignmentForSubmit.description}"
                 </p>
               </div>
 
               {/* Input Nomor Absen Siswa */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Nomor Urut Absen Siswa *
                 </label>
                 <div className="flex items-center gap-2">
-                  <div className="w-12 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono font-bold flex items-center justify-center text-xs shrink-0">
+                  <div className="w-12 h-10 rounded-2xl bg-[#163E4B] text-[#F4A950] font-mono tabular-nums font-extrabold flex items-center justify-center text-xs shrink-0">
                     #{attendanceNumberInput.toString().padStart(2, '0')}
                   </div>
                   <input
@@ -901,22 +874,22 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                     onChange={(e) =>
                       setAttendanceNumberInput(Math.max(1, parseInt(e.target.value) || 1))
                     }
-                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+                    className="flex-1 px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white font-bold focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] font-mono tabular-nums"
                     placeholder="Nomor absen (contoh: 1, 2, 3...)"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Pengumpulan tugas akan otomatis diurutkan sesuai nomor absen ini di portal penilaian guru.
+                <p className="text-[10px] text-[#7B8D93] mt-1">
+                  Pengumpulan tugas otomatis diurutkan sesuai nomor absen di portal penilaian guru.
                 </p>
               </div>
 
               {/* Upload Zone */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   File Jawaban / Dokumen Tugas (PDF, JPG, PNG, DOCX, maks 10MB) *
                 </label>
 
-                <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 text-center hover:border-indigo-500 transition-colors bg-slate-50/50 dark:bg-slate-900/20">
+                <div className="relative border-2 border-dashed border-[#CBD6DA] dark:border-[#275668] rounded-[24px] p-5 text-center hover:border-[#F4A950] transition-colors bg-[#F7F7F5] dark:bg-[#0E262F]">
                   <input
                     type="file"
                     id="student-file-input"
@@ -925,52 +898,50 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  <UploadCloud className="w-8 h-8 mx-auto text-indigo-500 mb-2" />
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  <UploadCloud className="w-8 h-8 mx-auto text-[#F4A950] mb-2" />
+                  <p className="text-xs font-bold text-[#163E4B] dark:text-white">
                     {uploadFile ? uploadFile.name : 'Ketuk untuk memilih file dokumen tugas'}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-[#7B8D93] mt-0.5">
                     {uploadFile
-                      ? `Ukuran: ${uploadFile.size} • Siap dikirim`
+                      ? `Ukuran: ${uploadFile.size} · Siap dikirim`
                       : 'Mendukung format PDF, JPG, PNG, DOCX hingga 10MB'}
                   </p>
                 </div>
               </div>
 
-              {/* Student Note */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Catatan Tambahan untuk Guru (Opsional)
                 </label>
                 <textarea
                   rows={2}
                   value={studentNote}
                   onChange={(e) => setStudentNote(e.target.value)}
-                  placeholder="Tuliskan catatan singkat jika ada hal khusus mengenai jawaban ini..."
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  placeholder="Tuliskan catatan singkat mengenai jawaban ini..."
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] resize-none"
                 />
               </div>
 
-              {/* Verification Info note */}
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-[#FCEADE] dark:bg-[#193D4A] text-[11px] text-[#163E4B] dark:text-[#FCEADE] flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-[#E59638] shrink-0 mt-0.5" />
                 <span>
-                  Setelah tugas dikirim, tugas akan berstatus <b>Menunggu Verifikasi Guru</b>. XP Anda akan <b>menyala & bertambah (+75 hingga +125 XP)</b> begitu guru mengonfirmasi pengumpulan Anda!
+                  Setelah tugas dikirim, XP Anda akan <b>bertambah (+75 hingga +125 XP)</b> begitu guru memverifikasi dan menilai tugas Anda.
                 </span>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#F0F0EC] dark:border-[#214B59] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedAssignmentForSubmit(null)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] hover:bg-[#F7F7F5] dark:hover:bg-[#1B4250] cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !uploadFile}
-                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_18px_rgba(244,169,80,0.35)] disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                 >
                   {isSubmitting ? 'Mengirim...' : 'Kirim Tugas ke Guru'}
                 </button>
@@ -982,15 +953,15 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Teacher Create Assignment Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
-              <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                Terbitkan Tugas Baru untuk Kelas (Guru)
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D242C]/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#13313C] rounded-[28px] max-w-lg w-full p-5 shadow-2xl border border-[#ECECE6] dark:border-[#245363] max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F0EC] dark:border-[#214B59]">
+              <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
+                Terbitkan Tugas Baru untuk Kelas
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                className="text-[#7B8D93] hover:text-[#163E4B] dark:hover:text-white text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -998,7 +969,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
             <form onSubmit={handleCreateAssignment} className="mt-4 space-y-3.5">
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Judul Tugas *
                 </label>
                 <input
@@ -1007,56 +978,53 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   placeholder="Contoh: Praktikum Fisika Hukum Newton atau Hafalan Al-Qur'an"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Mata Pelajaran *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Al-Qur'an Hadits, Fiqih, IPA Terpadu, Bahasa Arab"
+                  placeholder="Contoh: Al-Qur'an Hadits, Fiqih, IPA Terpadu"
                   value={newSubject}
                   onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Tenggat Pengumpulan (Deadline Kadaluwarsa) *
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
+                  Tenggat Pengumpulan *
                 </label>
                 <input
                   type="datetime-local"
                   required
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] font-mono tabular-nums"
                 />
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Siswa yang tidak mengumpulkan sebelum tenggat ini akan ditandai Kadaluwarsa (-30 XP).
-                </p>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Petunjuk & Kriteria Tugas *
                 </label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Tuliskan petunjuk pengerjaan tugas, format penulisan, dan kriteria penilaian..."
+                  placeholder="Tuliskan petunjuk pengerjaan tugas dan kriteria penilaian..."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] resize-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Nama File Lampiran Soal / Modul (Opsional)
                 </label>
                 <input
@@ -1064,21 +1032,21 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   placeholder="Contoh: Modul_Tugas_04.pdf"
                   value={attachmentName}
                   onChange={(e) => setAttachmentName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#F0F0EC] dark:border-[#214B59] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] hover:bg-[#F7F7F5] dark:hover:bg-[#1B4250] cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_18px_rgba(244,169,80,0.35)] cursor-pointer"
                 >
                   Publikasikan Tugas
                 </button>
@@ -1090,14 +1058,14 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Teacher Edit Assignment Modal */}
       {showEditModal && editingAssignment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D242C]/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#13313C] rounded-[28px] max-w-lg w-full p-5 shadow-2xl border border-[#ECECE6] dark:border-[#245363] max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F0EC] dark:border-[#214B59]">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                  <Pencil className="w-4 h-4" />
+                <div className="p-2 rounded-xl bg-[#FCEADE] text-[#163E4B]">
+                  <Pencil className="w-4 h-4 text-[#E59638]" />
                 </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
                   Edit Tugas Belajar (Mode Guru)
                 </h3>
               </div>
@@ -1106,7 +1074,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   setShowEditModal(false);
                   setEditingAssignment(null);
                 }}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
+                className="text-[#7B8D93] hover:text-[#163E4B] dark:hover:text-white text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -1114,36 +1082,34 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
             <form onSubmit={handleSaveEditAssignment} className="mt-4 space-y-3.5">
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Judul Tugas *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Judul tugas..."
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Mata Pelajaran *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Mata pelajaran..."
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                     Tenggat Pengumpulan *
                   </label>
                   <input
@@ -1151,12 +1117,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                     required
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] font-mono tabular-nums"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                     Nilai Maksimal
                   </label>
                   <input
@@ -1165,27 +1131,26 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                     max={100}
                     value={editMaxScore}
                     onChange={(e) => setEditMaxScore(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono font-bold"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] font-mono tabular-nums font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Petunjuk & Kriteria Tugas *
                 </label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Petunjuk pengerjaan..."
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950] resize-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                <label className="text-xs font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                   Nama File Lampiran Soal / Modul (Opsional)
                 </label>
                 <input
@@ -1193,24 +1158,24 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                   placeholder="Contoh: Modul_Tugas_04.pdf"
                   value={editAttachmentName}
                   onChange={(e) => setEditAttachmentName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#275668] bg-[#F7F7F5] dark:bg-[#0E262F] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#F0F0EC] dark:border-[#214B59] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingAssignment(null);
                   }}
-                  className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] hover:bg-[#F7F7F5] dark:hover:bg-[#1B4250] cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer flex items-center gap-1.5"
+                  className="px-5 py-2 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_18px_rgba(244,169,80,0.35)] cursor-pointer flex items-center gap-1.5"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Simpan Perubahan Tugas</span>
@@ -1223,26 +1188,25 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
       {/* Teacher Review, Grading & Verification Modal */}
       {selectedAssignmentForReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0D242C]/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#13313C] rounded-[28px] max-w-2xl w-full p-5 shadow-2xl border border-[#ECECE6] dark:border-[#245363] max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0F0EC] dark:border-[#214B59]">
               <div>
-                <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
-                  Verifikasi Pengumpulan & Penilaian (Pihak Guru)
+                <span className="text-[11px] font-bold text-[#E59638]">
+                  Verifikasi Pengumpulan & Penilaian (Urutan Absen)
                 </span>
-                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
                   {selectedAssignmentForReview.title}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedAssignmentForReview(null)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                className="text-[#7B8D93] hover:text-[#163E4B] dark:hover:text-white text-sm font-bold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* List of submissions */}
             <div className="mt-4 space-y-3">
               {(() => {
                 const subs = submissions
@@ -1269,12 +1233,12 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
 
                 if (subs.length === 0) {
                   return (
-                    <div className="p-8 text-center border border-dashed border-slate-200 dark:border-slate-700 rounded-xl space-y-1">
-                      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    <div className="p-8 text-center border border-dashed border-[#D8E0E3] dark:border-[#245363] rounded-2xl space-y-1">
+                      <p className="text-sm font-bold text-[#163E4B] dark:text-white">
                         Belum ada siswa yang mengumpulkan tugas ini.
                       </p>
-                      <p className="text-xs text-slate-400">
-                        Siswa yang telah mengunggah file jawaban akan muncul di sini sesuai nomor urut absen untuk Anda cantumkan nilai dan berikan verifikasi XP.
+                      <p className="text-xs text-[#7B8D93]">
+                        Siswa yang telah mengunggah berkas akan tampil berurutan sesuai nomor absen untuk dinilai.
                       </p>
                     </div>
                   );
@@ -1283,31 +1247,29 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                 return (
                   <>
                     {/* Attendance Sorting & Overview Bar */}
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap text-xs">
+                    <div className="p-3 rounded-2xl bg-[#F7F7F5] dark:bg-[#0E262F] border border-[#ECECE6] dark:border-[#214B59] flex items-center justify-between gap-2 flex-wrap text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">
-                          Urutan:
-                        </span>
-                        <div className="flex items-center bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <span className="font-bold text-[#163E4B] dark:text-white">Urutan:</span>
+                        <div className="flex items-center bg-white dark:bg-[#13313C] p-0.5 rounded-full border border-[#E5E8E6] dark:border-[#245363]">
                           <button
                             type="button"
                             onClick={() => setSortSubmissionBy('attendance')}
-                            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                            className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                               sortSubmissionBy === 'attendance'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                ? 'bg-[#163E4B] text-white shadow-xs'
+                                : 'text-[#6E828A] dark:text-[#9CB7C0]'
                             }`}
                           >
-                            <ListOrdered className="w-3.5 h-3.5" />
+                            <ListOrdered className="w-3.5 h-3.5 text-[#F4A950]" />
                             <span>Sesuai No. Absen (1 - 40)</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setSortSubmissionBy('time')}
-                            className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                            className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
                               sortSubmissionBy === 'time'
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                ? 'bg-[#163E4B] text-white shadow-xs'
+                                : 'text-[#6E828A] dark:text-[#9CB7C0]'
                             }`}
                           >
                             <Clock className="w-3.5 h-3.5" />
@@ -1316,14 +1278,20 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 text-[11px] text-slate-500 font-medium">
-                        <span>Total: <b className="text-slate-800 dark:text-slate-200">{subs.length} Siswa</b></span>
-                        <span>•</span>
-                        <span>Dinilai: <b className="text-emerald-600">{gradedSubs.length}/{subs.length}</b></span>
+                      <div className="flex items-center gap-2 text-[11px] text-[#6E828A] font-semibold tabular-nums">
+                        <span>
+                          Total: <b className="text-[#163E4B] dark:text-white">{subs.length} Siswa</b>
+                        </span>
+                        <span>·</span>
+                        <span>
+                          Dinilai: <b className="text-[#E59638]">{gradedSubs.length}/{subs.length}</b>
+                        </span>
                         {avgScore !== null && (
                           <>
-                            <span>•</span>
-                            <span>Rata-rata: <b className="text-indigo-600 font-bold">{avgScore}</b></span>
+                            <span>·</span>
+                            <span>
+                              Rata-rata: <b className="text-[#163E4B] dark:text-[#F4A950]">{avgScore}</b>
+                            </span>
                           </>
                         )}
                       </div>
@@ -1336,115 +1304,116 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                       return (
                         <div
                           key={sub.id}
-                          className={`p-4 rounded-xl border transition-all space-y-3 ${
+                          className={`p-4 rounded-[22px] border transition-all space-y-3 ${
                             isVerified
-                              ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20'
-                              : 'border-amber-300 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20'
+                              ? 'border-[#ECECE6] dark:border-[#245363] bg-white dark:bg-[#0E262F]'
+                              : 'border-[#F4D3BA] dark:border-[#2A596A] bg-[#FCEADE]/60 dark:bg-[#193D4A]'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                               {/* Urutan Nomor Absen Badge */}
-                              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-mono font-black text-xs flex flex-col items-center justify-center shrink-0 shadow-xs ring-2 ring-indigo-200 dark:ring-indigo-900">
-                                <span className="text-[9px] uppercase tracking-wider opacity-80 leading-none">Absen</span>
-                                <span className="text-sm font-black leading-tight">
+                              <div className="w-11 h-11 rounded-2xl bg-[#163E4B] text-white font-mono tabular-nums font-black text-xs flex flex-col items-center justify-center shrink-0 shadow-xs">
+                                <span className="text-[8px] text-[#FCEADE]/80 leading-none">
+                                  Absen
+                                </span>
+                                <span className="text-sm font-black text-[#F4A950] leading-tight">
                                   #{String(sub.attendanceNumber || 1).padStart(2, '0')}
                                 </span>
                               </div>
 
                               <img
-                                src={sub.studentAvatar}
+                                src={sub.studentAvatar || AVATAR_STUDENT_SVG}
                                 alt={sub.studentName}
-                                className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  e.currentTarget.src = AVATAR_STUDENT_SVG;
+                                }}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-[#245363]"
                               />
 
                               <div>
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <h5 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h5 className="font-extrabold text-xs sm:text-sm text-[#163E4B] dark:text-white">
                                     {sub.studentName}
                                   </h5>
                                   {isVerified ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                      Terverifikasi (+{sub.xpAwarded || 75} XP)
+                                    <span className="text-[11px] font-bold text-[#163E4B] dark:text-[#FCEADE] tabular-nums">
+                                      · Terverifikasi (+{sub.xpAwarded || 75} XP)
                                     </span>
                                   ) : (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse">
-                                      ⏳ Menunggu Verifikasi Guru
+                                    <span className="text-[11px] font-bold text-[#E59638]">
+                                      · Menunggu Nilai Guru
                                     </span>
                                   )}
                                   {sub.isLate && (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400">
-                                      Terlambat
+                                    <span className="text-[11px] font-bold text-rose-600">
+                                      · Terlambat
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-400">
+                                <p className="text-[11px] text-[#7B8D93]">
                                   Dikumpulkan: {formatDueDate(sub.submittedAt)}
                                 </p>
                               </div>
                             </div>
 
-                            {/* Current Grade Badge & Predicate */}
                             <div className="text-right shrink-0">
                               {sub.grade !== undefined ? (
                                 <div className="space-y-0.5 text-right">
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-xs">
-                                    <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#163E4B] text-white font-extrabold text-xs tabular-nums">
+                                    <Star className="w-3.5 h-3.5 fill-[#F4A950] text-[#F4A950]" />
                                     {sub.grade} / 100
                                   </span>
-                                  <span className="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  <span className="block text-[10px] font-bold text-[#E59638]">
                                     {sub.grade >= 90
-                                      ? 'Predikat A (Sangat Baik)'
+                                      ? 'Predikat A'
                                       : sub.grade >= 80
-                                      ? 'Predikat B (Baik)'
+                                      ? 'Predikat B'
                                       : sub.grade >= 70
-                                      ? 'Predikat C (Cukup)'
-                                      : 'Predikat D (Perlu Bimbingan)'}
+                                      ? 'Predikat C'
+                                      : 'Predikat D'}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded">
+                                <span className="text-[11px] font-bold text-[#E59638]">
                                   Belum Dinilai
                                 </span>
                               )}
                             </div>
                           </div>
 
-                          {/* File Details & Download button */}
-                          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between">
+                          <div className="p-3 rounded-2xl bg-[#F7F7F5] dark:bg-[#13313C] border border-[#EAEAE4] dark:border-[#245363] flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 truncate">
-                              <FileText className="w-4 h-4 text-indigo-500 shrink-0" />
+                              <FileText className="w-4 h-4 text-[#F4A950] shrink-0" />
                               <div className="truncate">
-                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                <p className="text-xs font-bold text-[#163E4B] dark:text-white truncate">
                                   {sub.fileName}
                                 </p>
-                                <p className="text-[10px] text-slate-400">{sub.fileSize}</p>
+                                <p className="text-[10px] text-[#7B8D93]">{sub.fileSize}</p>
                               </div>
                             </div>
                             <button
                               type="button"
                               onClick={() => alert(`Mengunduh file jawaban: ${sub.fileName}`)}
-                              className="px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg flex items-center gap-1 shrink-0 cursor-pointer"
+                              className="px-3 py-1.5 text-xs font-bold text-[#163E4B] dark:text-[#FCEADE] hover:bg-white dark:hover:bg-[#1A4250] rounded-full flex items-center gap-1 shrink-0 cursor-pointer"
                             >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Unduh Berkas</span>
+                              <Download className="w-3.5 h-3.5 text-[#F4A950]" />
+                              <span>Unduh</span>
                             </button>
                           </div>
 
-                          {/* Student Note */}
                           {sub.studentNote && (
-                            <p className="text-xs text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <p className="text-xs text-[#5E747D] dark:text-[#C5DBE2] bg-white/80 dark:bg-[#13313C] p-2.5 rounded-xl border border-[#ECECE6] dark:border-[#245363]">
                               Catatan Siswa: "{sub.studentNote}"
                             </p>
                           )}
 
-                          {/* Teacher Actions & Verification Form */}
                           {isGradingThis ? (
-                            <div className="pt-2 border-t border-slate-200 dark:border-slate-700 space-y-2.5">
+                            <div className="pt-2 border-t border-[#ECECE6] dark:border-[#245363] space-y-2.5">
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <div>
-                                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                                  <label className="text-[11px] font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                                     Cantumkan Nilai (0 - 100) *
                                   </label>
                                   <input
@@ -1453,7 +1422,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                     max={100}
                                     value={scoreInput}
                                     onChange={(e) => setScoreInput(Number(e.target.value))}
-                                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold font-mono"
+                                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white font-bold font-mono tabular-nums"
                                   />
                                   <div className="flex gap-1 mt-1">
                                     {[100, 95, 85, 75].map((preset) => (
@@ -1461,7 +1430,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                         key={preset}
                                         type="button"
                                         onClick={() => setScoreInput(preset)}
-                                        className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 hover:bg-indigo-100 text-slate-700 dark:text-slate-300 font-semibold"
+                                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#FCEADE] hover:bg-[#F4A950] hover:text-white text-[#163E4B] font-bold tabular-nums cursor-pointer transition-colors"
                                       >
                                         {preset}
                                       </button>
@@ -1469,7 +1438,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                   </div>
                                 </div>
                                 <div className="sm:col-span-2">
-                                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                                  <label className="text-[11px] font-bold text-[#163E4B] dark:text-[#E5F0F3] block mb-1">
                                     Catatan / Umpan Balik Guru
                                   </label>
                                   <input
@@ -1477,7 +1446,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                     placeholder="Contoh: Jawaban sangat rapi dan lengkap..."
                                     value={feedbackInput}
                                     onChange={(e) => setFeedbackInput(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                                    className="w-full px-3 py-1.5 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white"
                                   />
                                 </div>
                               </div>
@@ -1486,7 +1455,7 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                 <button
                                   type="button"
                                   onClick={() => setGradingSubmissionId(null)}
-                                  className="px-3 py-1.5 text-xs rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
+                                  className="px-3.5 py-1.5 text-xs font-bold rounded-full text-[#6E828A] hover:bg-[#F7F7F5] cursor-pointer"
                                 >
                                   Batal
                                 </button>
@@ -1500,17 +1469,19 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                       feedbackInput
                                     )
                                   }
-                                  className="px-4 py-1.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white shadow-md flex items-center gap-1.5 cursor-pointer"
+                                  className="px-4 py-1.5 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-[0_6px_16px_rgba(244,169,80,0.35)] flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Simpan Nilai & Beri XP (+{scoreInput >= 85 ? 125 : 75} XP)</span>
+                                  <span className="tabular-nums">
+                                    Simpan Nilai & Beri XP (+{scoreInput >= 85 ? 125 : 75} XP)
+                                  </span>
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60 flex-wrap">
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#ECECE6] dark:border-[#245363] flex-wrap">
                               {sub.feedback && (
-                                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic line-clamp-1">
+                                <p className="text-[11px] text-[#6E828A] dark:text-[#9CB7C0] line-clamp-1">
                                   Catatan Guru: "{sub.feedback}"
                                 </p>
                               )}
@@ -1527,9 +1498,9 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                         sub.feedback || 'Tugas diverifikasi oleh guru pengampu'
                                       )
                                     }
-                                    className="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                                    className="px-3.5 py-1.5 text-xs font-bold rounded-full bg-[#163E4B] hover:bg-[#10303B] text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
                                   >
-                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <Sparkles className="w-3.5 h-3.5 text-[#F4A950]" />
                                     <span>Verifikasi Cepat (+125 XP)</span>
                                   </button>
                                 )}
@@ -1541,9 +1512,9 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
                                     setScoreInput(sub.grade !== undefined ? sub.grade : 90);
                                     setFeedbackInput(sub.feedback || 'Bagus sekali!');
                                   }}
-                                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors cursor-pointer flex items-center gap-1"
+                                  className="px-3.5 py-1.5 text-xs font-bold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-white shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
                                 >
-                                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                                  <Star className="w-3.5 h-3.5 fill-white text-white" />
                                   <span>
                                     {sub.grade !== undefined
                                       ? 'Ubah Nilai & Feedback'
@@ -1563,6 +1534,13 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
           </div>
         </div>
       )}
+
+      {/* Gamification & XP Explanation Modal */}
+      <GamificationModal
+        isOpen={showGamificationModal}
+        onClose={() => setShowGamificationModal(false)}
+        defaultTab="penjelasan"
+      />
 
       {/* Teacher Phone Verification Modal */}
       <TeacherPhoneVerificationModal

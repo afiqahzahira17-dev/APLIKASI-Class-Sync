@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Database,
   Download,
   CheckCircle2,
   X,
@@ -56,22 +55,22 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-5 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-[#0B1E25]/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#132F3A] border border-[#E8ECEE] dark:border-[#214B59] rounded-[28px] w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(22,62,75,0.2)] p-5 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-[#163E4B] text-[#F4A950] flex items-center justify-center font-bold">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <h3 className="font-extrabold text-base text-[#163E4B] dark:text-white flex items-center gap-2 flex-wrap">
                 <span>Pengaturan Privasi & Keamanan</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#FCEADE] text-[#8A4F14] dark:bg-[#F4A950]/20 dark:text-[#F4A950]">
                   Transparan
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#6E828A] dark:text-[#96B2BC]">
                 Kontrol hak akses data jadwal sensitif dan keamanan akun
               </p>
             </div>
@@ -79,7 +78,7 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 text-[#8A9BA2] hover:text-[#163E4B] dark:hover:text-white rounded-full hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -87,23 +86,23 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
 
         {/* Privacy Toggles */}
         <div className="space-y-3">
-          <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-            <Eye className="w-4 h-4 text-indigo-500" />
+          <h4 className="font-bold text-xs text-[#163E4B] dark:text-white flex items-center gap-1.5">
+            <Eye className="w-4 h-4 text-[#E59638]" />
             <span>Preferensi Visibilitas Jadwal & Lokasi</span>
           </h4>
 
           {/* Toggle 1: Hide specific location */}
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+          <div className="p-3.5 rounded-[22px] border border-[#E8ECEE] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] flex items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <p className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+              <p className="font-bold text-xs text-[#163E4B] dark:text-white flex items-center gap-1.5">
                 {privacySettings.hideSpecificLocations ? (
-                  <EyeOff className="w-3.5 h-3.5 text-amber-500" />
+                  <EyeOff className="w-3.5 h-3.5 text-[#E59638]" />
                 ) : (
-                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <Eye className="w-3.5 h-3.5 text-[#8A9BA2]" />
                 )}
                 <span>Sembunyikan Lokasi Ruangan Spesifik</span>
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] leading-tight">
                 Lokasi ruang kelas/lab hanya akan ditampilkan sebagai "Ruang Kelas" untuk menjaga privasi pergerakan siswa.
               </p>
             </div>
@@ -114,12 +113,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
                   hideSpecificLocations: !privacySettings.hideSpecificLocations,
                 })
               }
-              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
-                privacySettings.hideSpecificLocations ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                privacySettings.hideSpecificLocations
+                  ? 'bg-[#163E4B] dark:bg-[#F4A950]'
+                  : 'bg-[#D5DFE3] dark:bg-[#193B48]'
               }`}
             >
               <span
-                className={`w-5 h-5 rounded-full bg-white block transition-transform shadow-xs absolute top-0.5 ${
+                className={`w-5 h-5 rounded-full bg-white dark:bg-[#0B1E25] block transition-transform shadow-xs absolute top-0.5 ${
                   privacySettings.hideSpecificLocations ? 'translate-x-5' : 'translate-x-0.5'
                 }`}
               />
@@ -127,13 +128,13 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           </div>
 
           {/* Toggle 2: Members Only Schedule */}
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+          <div className="p-3.5 rounded-[22px] border border-[#E8ECEE] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] flex items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <p className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
-                <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+              <p className="font-bold text-xs text-[#163E4B] dark:text-white flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-[#8A9BA2]" />
                 <span>Hanya Tampilkan Jadwal ke Anggota Terdaftar</span>
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] leading-tight">
                 Mencegah orang luar yang tidak memiliki kode kelas resmi melihat rincian mata pelajaran harian.
               </p>
             </div>
@@ -144,12 +145,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
                   membersOnlySchedule: !privacySettings.membersOnlySchedule,
                 })
               }
-              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
-                privacySettings.membersOnlySchedule ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                privacySettings.membersOnlySchedule
+                  ? 'bg-[#163E4B] dark:bg-[#F4A950]'
+                  : 'bg-[#D5DFE3] dark:bg-[#193B48]'
               }`}
             >
               <span
-                className={`w-5 h-5 rounded-full bg-white block transition-transform shadow-xs absolute top-0.5 ${
+                className={`w-5 h-5 rounded-full bg-white dark:bg-[#0B1E25] block transition-transform shadow-xs absolute top-0.5 ${
                   privacySettings.membersOnlySchedule ? 'translate-x-5' : 'translate-x-0.5'
                 }`}
               />
@@ -157,13 +160,13 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
           </div>
 
           {/* Toggle 3: Gamification Stats */}
-          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+          <div className="p-3.5 rounded-[22px] border border-[#E8ECEE] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] flex items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <p className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />
+              <p className="font-bold text-xs text-[#163E4B] dark:text-white flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#8A9BA2]" />
                 <span>Tampilkan Badge & Skor Prestasi</span>
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] leading-tight">
                 Tampilkan lencana tugas tepat waktu dan level kemahiran belajar di profil Anda.
               </p>
             </div>
@@ -174,12 +177,14 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
                   showStudyStats: !privacySettings.showStudyStats,
                 })
               }
-              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
-                privacySettings.showStudyStats ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer ${
+                privacySettings.showStudyStats
+                  ? 'bg-[#163E4B] dark:bg-[#F4A950]'
+                  : 'bg-[#D5DFE3] dark:bg-[#193B48]'
               }`}
             >
               <span
-                className={`w-5 h-5 rounded-full bg-white block transition-transform shadow-xs absolute top-0.5 ${
+                className={`w-5 h-5 rounded-full bg-white dark:bg-[#0B1E25] block transition-transform shadow-xs absolute top-0.5 ${
                   privacySettings.showStudyStats ? 'translate-x-5' : 'translate-x-0.5'
                 }`}
               />
@@ -188,54 +193,54 @@ export const PrivacySettingsModal: React.FC<PrivacySettingsModalProps> = ({
         </div>
 
         {/* Security & Access Transparency */}
-        <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+        <div className="p-4 rounded-[24px] bg-[#FCEADE] dark:bg-[#F4A950]/15 border border-[#F4D3BA] dark:border-[#F4A950]/30 space-y-2">
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <h5 className="font-bold text-xs text-emerald-900 dark:text-emerald-200">
-              Keamanan Data & Row Level Security (RLS)
+            <Lock className="w-4 h-4 text-[#E59638]" />
+            <h5 className="font-extrabold text-xs text-[#163E4B] dark:text-[#FCEADE]">
+              Perlindungan Data Kelas & Privasi Akademik
             </h5>
           </div>
-          <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
-            Data jadwal dan nilai pengumpulan tugas dilindungi oleh aturan keamanan PostgreSQL RLS. Hanya pengguna yang terotentikasi dan anggota kelas yang diizinkan memodifikasi tugas dan absensi.
+          <p className="text-[11px] text-[#4B636D] dark:text-[#D2E2E8] leading-relaxed">
+            Data jadwal dan nilai pengumpulan tugas terlindungi secara terisolasi. Hanya pengguna yang terotentikasi dan anggota kelas resmi yang diizinkan memodifikasi tugas dan nilai absen.
           </p>
-          <div className="grid grid-cols-2 gap-2 pt-1 text-[10px] font-mono text-emerald-700 dark:text-emerald-400">
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <div className="grid grid-cols-2 gap-2 pt-1 text-[10px] font-mono text-[#163E4B] dark:text-[#F4A950]">
+            <span className="flex items-center gap-1 font-bold">
+              <CheckCircle2 className="w-3 h-3 text-[#E59638]" />
               Penyimpanan Terisolasi
             </span>
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-              Realtime Socket TLS
+            <span className="flex items-center gap-1 font-bold">
+              <CheckCircle2 className="w-3 h-3 text-[#E59638]" />
+              Akses Anggota Terbatas
             </span>
           </div>
         </div>
 
         {/* Data Portability: Backup JSON */}
-        <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <div className="p-4 rounded-[24px] bg-[#F7F7F5] dark:bg-[#0E242D] border border-[#E8ECEE] dark:border-[#214B59] flex items-center justify-between gap-3">
           <div>
-            <h5 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
-              <FileCheck className="w-4 h-4 text-indigo-500" />
+            <h5 className="font-bold text-xs text-[#163E4B] dark:text-white flex items-center gap-1.5">
+              <FileCheck className="w-4 h-4 text-[#E59638]" />
               <span>Salinan Cadangan Data (Backup)</span>
             </h5>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] mt-0.5">
               Unduh seluruh salinan data jadwal, tugas, dan kelas Anda dalam format JSON.
             </p>
           </div>
 
           <button
             onClick={handleExportBackup}
-            className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="px-3.5 py-2 bg-[#163E4B] hover:bg-[#1D4E5E] text-white rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <Download className="w-3.5 h-3.5 text-[#F4A950]" />
             <span>Unduh JSON</span>
           </button>
         </div>
 
         {/* Footer */}
-        <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-slate-800">
+        <div className="pt-2 flex justify-end border-t border-[#E8ECEE] dark:border-[#214B59]">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold"
+            className="px-5 py-2 bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] rounded-full text-xs font-extrabold cursor-pointer transition-colors"
           >
             Selesai
           </button>

@@ -11,8 +11,8 @@ export const MobileDeviceShell: React.FC<MobileDeviceShellProps> = ({ children }
 
   if (!isMobileDeviceFrame) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-        <div className="max-w-2xl mx-auto min-h-screen relative flex flex-col">
+      <div className="min-h-screen bg-[#F7F7F5] dark:bg-[#0B1E25] text-[#163E4B] dark:text-[#F2F6F7] transition-colors relative overflow-x-hidden">
+        <div className="max-w-3xl mx-auto min-h-screen relative flex flex-col">
           {children}
         </div>
       </div>
@@ -20,31 +20,30 @@ export const MobileDeviceShell: React.FC<MobileDeviceShellProps> = ({ children }
   }
 
   return (
-    <div className="min-h-screen bg-slate-200 dark:bg-slate-950 p-4 sm:p-6 flex flex-col items-center justify-center transition-colors">
+    <div className="min-h-screen bg-[#CFD8DC] dark:bg-[#08161C] p-4 sm:p-6 flex flex-col items-center justify-center transition-colors relative overflow-hidden">
       {/* Top Controller helper */}
-      <div className="mb-3 flex items-center justify-between w-full max-w-[420px] px-2 text-xs text-slate-600 dark:text-slate-400">
-        <span className="font-semibold flex items-center gap-1.5">
-          <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
+      <div className="mb-3 flex items-center justify-between w-full max-w-[420px] px-2 text-xs text-[#163E4B] dark:text-[#B9CFD6]">
+        <span className="font-bold flex items-center gap-1.5">
+          <Smartphone className="w-3.5 h-3.5 text-[#163E4B] dark:text-[#F4A950]" />
           Mode Bingkai Mobile (412 × 890px)
         </span>
         <button
           onClick={() => setIsMobileDeviceFrame(false)}
-          className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+          className="text-xs text-[#163E4B] dark:text-[#F4A950] font-bold hover:underline cursor-pointer"
         >
           Ganti ke Layar Penuh
         </button>
       </div>
 
-      {/* Realistic Mobile Device Frame */}
-      <div className="w-full max-w-[412px] h-[860px] bg-white dark:bg-slate-900 rounded-[44px] shadow-2xl border-[10px] border-slate-900 dark:border-slate-800 overflow-hidden relative flex flex-col ring-1 ring-black/10">
+      {/* White Bezel Realistic Mobile Frame matching reference design */}
+      <div className="w-full max-w-[412px] h-[860px] bg-[#F7F7F5] dark:bg-[#0B1E25] rounded-[46px] shadow-[0_28px_65px_rgba(22,62,75,0.2)] border-[10px] border-white dark:border-[#163E4B] overflow-hidden relative flex flex-col ring-1 ring-[#163E4B]/10">
         {/* Status Bar */}
-        <div className="h-10 bg-white/95 dark:bg-slate-900/95 px-6 flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200 shrink-0 z-50 select-none">
-          <span className="font-mono text-[11px] font-bold">{witaTimeInfo.formattedTime} WITA</span>
+        <div className="h-10 bg-[#F7F7F5]/95 dark:bg-[#0B1E25]/95 px-6 flex items-center justify-between text-xs font-semibold text-[#163E4B] dark:text-[#E5EEF0] shrink-0 z-50 select-none">
+          <span className="font-mono tabular-nums text-[11px] font-bold">
+            {witaTimeInfo.formattedTime} WITA
+          </span>
 
-          {/* Dynamic Island Pill */}
-          <div className="w-24 h-4.5 bg-black rounded-full mx-auto" />
-
-          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-1.5 text-[#163E4B]/80 dark:text-[#E5EEF0]/80">
             <Signal className="w-3 h-3" />
             <Wifi className="w-3 h-3" />
             <BatteryMedium className="w-3.5 h-3.5" />
@@ -56,9 +55,9 @@ export const MobileDeviceShell: React.FC<MobileDeviceShellProps> = ({ children }
           {children}
         </div>
 
-        {/* Home Indicator Bar */}
-        <div className="h-4 bg-white dark:bg-slate-900 flex items-center justify-center shrink-0 z-50">
-          <div className="w-32 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+        {/* Home Indicator Bar matching reference phone frame */}
+        <div className="h-5 bg-white dark:bg-[#112B35] flex items-center justify-center shrink-0 z-50">
+          <div className="w-32 h-1 bg-[#163E4B] dark:bg-[#F4A950]/70 rounded-full" />
         </div>
       </div>
     </div>

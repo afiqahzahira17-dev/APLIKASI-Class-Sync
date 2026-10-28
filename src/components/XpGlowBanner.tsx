@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, Trophy, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { Sparkles, AlertTriangle, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const XpGlowBanner: React.FC = () => {
@@ -11,13 +11,12 @@ export const XpGlowBanner: React.FC = () => {
     if (lastXpGainNotice) {
       setVisible(true);
 
-      // Trigger sparkles confetti burst
       try {
         confetti({
           particleCount: 50,
           spread: 60,
           origin: { y: 0.15 },
-          colors: ['#F59E0B', '#10B981', '#6366F1', '#EC4899'],
+          colors: ['#F4A950', '#163E4B', '#FCEADE', '#10B981'],
         });
       } catch {}
 
@@ -35,40 +34,40 @@ export const XpGlowBanner: React.FC = () => {
   const isPenalty = lastXpGainNotice.amount < 0;
 
   return (
-    <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-3 animate-in fade-in slide-in-from-top-4 duration-300 pointer-events-none">
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-3 animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-none">
       <div
-        className={`pointer-events-auto p-4 rounded-2xl border shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 ${
+        className={`pointer-events-auto p-4 rounded-[24px] border shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 ${
           isPenalty
-            ? 'bg-rose-950/90 border-rose-500 text-white ring-4 ring-rose-500/40 shadow-rose-900/50'
-            : 'bg-amber-950/90 border-amber-400 text-white ring-4 ring-amber-400/50 shadow-[0_0_35px_rgba(245,158,11,0.6)] animate-pulse'
+            ? 'bg-[#3D181E]/95 border-rose-400/60 text-white'
+            : 'bg-[#163E4B]/95 border-[#F4A950] text-white shadow-[0_14px_35px_rgba(22,62,75,0.35)]'
         }`}
       >
         <div className="flex items-center gap-3">
           <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg shrink-0 shadow-md ${
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-lg shrink-0 shadow-xs ${
               isPenalty
-                ? 'bg-rose-600 text-white'
-                : 'bg-gradient-to-tr from-amber-500 to-yellow-300 text-amber-950 shadow-[0_0_15px_rgba(251,191,36,0.8)]'
+                ? 'bg-rose-500 text-white'
+                : 'bg-[#F4A950] text-white'
             }`}
           >
-            {isPenalty ? <AlertTriangle className="w-6 h-6" /> : <Sparkles className="w-6 h-6 animate-spin" />}
+            {isPenalty ? <AlertTriangle className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
           </div>
 
           <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/20 text-white">
-                {isPenalty ? '⚠️ Pinalti XP' : '✨ XP MENYALA & BERTAMBAH!'}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-[#FCEADE]">
+                {isPenalty ? 'Pinalti XP' : 'Poin XP Bertambah'}
               </span>
               <span
-                className={`text-sm font-black font-mono ${
-                  isPenalty ? 'text-rose-300' : 'text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.8)]'
+                className={`text-sm font-extrabold font-mono tabular-nums ${
+                  isPenalty ? 'text-rose-300' : 'text-[#F4A950]'
                 }`}
               >
                 {isPenalty ? `${lastXpGainNotice.amount} XP` : `+${lastXpGainNotice.amount} XP`}
               </span>
             </div>
 
-            <p className="text-xs font-medium text-slate-100 mt-0.5 leading-snug">
+            <p className="text-xs font-medium text-white/90 mt-0.5 leading-snug">
               {lastXpGainNotice.reason}
             </p>
           </div>
@@ -79,7 +78,7 @@ export const XpGlowBanner: React.FC = () => {
             setVisible(false);
             clearXpGainNotice();
           }}
-          className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 shrink-0 cursor-pointer"
+          className="p-1.5 rounded-xl text-white/70 hover:text-white hover:bg-white/10 shrink-0 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>

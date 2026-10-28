@@ -7,8 +7,6 @@ import {
   UserCheck,
   AlertTriangle,
   Calendar,
-  Radio,
-  Sparkles,
 } from 'lucide-react';
 
 interface WeeklyGridViewProps {
@@ -48,13 +46,11 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     ? witaTimeInfo.totalMinutes
     : timeToMinutes(simulatedTime);
 
-  // Filter schedules for the current active class
   const classSchedules = useMemo(() => {
     if (!activeClass) return [];
     return schedules.filter((s) => s.classId === activeClass.id);
   }, [schedules, activeClass]);
 
-  // Group schedules by day of week and sort by start time
   const schedulesByDay = useMemo(() => {
     const map: Record<number, ScheduleItem[]> = {
       1: [],
@@ -70,7 +66,6 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
       }
     });
 
-    // Sort each day
     Object.keys(map).forEach((d) => {
       const dayNum = Number(d);
       map[dayNum].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
@@ -79,7 +74,6 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     return map;
   }, [classSchedules]);
 
-  // Overlap Detection: Find any schedules that collide in time on the same day
   const overlappingScheduleIds = useMemo(() => {
     const overlapSet = new Set<string>();
 
@@ -93,7 +87,6 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
           const startB = timeToMinutes(itemB.startTime);
           const endB = timeToMinutes(itemB.endTime);
 
-          // Overlap condition: startA < endB && startB < endA
           if (startA < endB && startB < endA) {
             overlapSet.add(itemA.id);
             overlapSet.add(itemB.id);
@@ -105,60 +98,36 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
     return overlapSet;
   }, [schedulesByDay]);
 
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'red':
-        return 'bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 text-rose-900 dark:text-rose-100';
-      case 'emerald':
-      case 'teal':
-        return 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/60 text-emerald-900 dark:text-emerald-100';
-      case 'amber':
-      case 'orange':
-        return 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900/60 text-amber-900 dark:text-amber-100';
-      case 'purple':
-      case 'violet':
-        return 'bg-purple-50 border-purple-200 dark:bg-purple-950/40 dark:border-purple-900/60 text-purple-900 dark:text-purple-100';
-      case 'cyan':
-        return 'bg-cyan-50 border-cyan-200 dark:bg-cyan-950/40 dark:border-cyan-900/60 text-cyan-900 dark:text-cyan-100';
-      default:
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-900/60 text-blue-900 dark:text-blue-100';
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Overlap alert banner if any collision detected */}
       {overlappingScheduleIds.size > 0 && (
-        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 flex items-start gap-3 text-xs text-rose-900 dark:text-rose-200 animate-in fade-in">
+        <div className="p-4 rounded-[24px] bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 flex items-start gap-3 text-xs text-rose-900 dark:text-rose-200">
           <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p className="font-bold">
-              Terdeteksi {overlappingScheduleIds.size / 2} Jadwal Bentrok (Overlap Waktu)!
+              Terdeteksi {overlappingScheduleIds.size / 2} Jadwal Bentrok (Overlap Waktu)
             </p>
             <p className="text-[11px] text-rose-700 dark:text-rose-300">
-              Ada mata pelajaran yang memiliki jam mulai dan selesai bersamaan di hari yang sama. Jadwal yang bertabrakan ditandai dengan garis merah tebal di bawah.
+              Ada mata pelajaran dengan jam mulai dan selesai bersamaan di hari yang sama.
             </p>
           </div>
         </div>
       )}
 
-      {/* Grid Table Container */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-        {/* Header Grid Summary */}
-        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+      <div className="bg-white dark:bg-[#13313C] rounded-[28px] border border-[#ECECE6] dark:border-[#214B59] shadow-[0_10px_30px_rgba(22,62,75,0.06)] overflow-hidden">
+        <div className="p-4 bg-[#163E4B] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+            <Calendar className="w-4 h-4 text-[#F4A950]" />
+            <h3 className="font-extrabold text-sm">
               Visualisasi Grid Mingguan KBM
             </h3>
           </div>
-          <span className="text-xs text-slate-500 font-medium">
-            Total {classSchedules.length} Sesi Terjadwal
+          <span className="text-xs text-[#FCEADE] font-semibold tabular-nums">
+            Total {classSchedules.length} Sesi
           </span>
         </div>
 
-        {/* 6-Column Responsive Weekly Matrix (Senin - Sabtu) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800/80">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-[#F0F0EC] dark:divide-[#214B59]">
           {days.map((day) => {
             const dayItems = schedulesByDay[day.id] || [];
             const isToday = effectiveDay === day.id;
@@ -166,49 +135,47 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
             return (
               <div
                 key={day.id}
-                className={`p-3 space-y-2.5 min-h-[300px] transition-colors ${
+                className={`p-3.5 space-y-2.5 min-h-[260px] transition-colors ${
                   isToday
-                    ? 'bg-indigo-50/20 dark:bg-indigo-950/10'
-                    : 'bg-white dark:bg-slate-900'
+                    ? 'bg-[#FCEADE]/30 dark:bg-[#193E4C]/50'
+                    : 'bg-white dark:bg-[#13313C]'
                 }`}
               >
-                {/* Column Day Header */}
                 <div
                   className={`pb-2 border-b flex items-center justify-between ${
                     isToday
-                      ? 'border-indigo-300 dark:border-indigo-800'
-                      : 'border-slate-100 dark:border-slate-800'
+                      ? 'border-[#F4A950]'
+                      : 'border-[#F0F0EC] dark:border-[#214B59]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`font-bold text-xs ${
+                      className={`font-extrabold text-xs ${
                         isToday
-                          ? 'text-indigo-600 dark:text-indigo-400'
-                          : 'text-slate-800 dark:text-slate-200'
+                          ? 'text-[#E59638]'
+                          : 'text-[#163E4B] dark:text-white'
                       }`}
                     >
                       {day.label}
                     </span>
                     {isToday && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[9px] font-bold">
-                        <Radio className="w-2 h-2 animate-pulse" /> Hari Ini
+                      <span className="text-[10px] font-bold text-[#163E4B] dark:text-[#FCEADE]">
+                        · Hari Ini
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-[10px] font-mono tabular-nums text-[#7B8D93]">
                     {dayItems.length} Mapel
                   </span>
                 </div>
 
-                {/* Day Items List */}
                 {dayItems.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-slate-400 italic">
+                  <div className="py-8 text-center text-[11px] text-[#8DA0A6]">
                     Libur / Kosong
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {dayItems.map((item) => {
+                    {dayItems.map((item, idx) => {
                       const isOverlap = overlappingScheduleIds.has(item.id);
                       const startMin = timeToMinutes(item.startTime);
                       const endMin = timeToMinutes(item.endTime);
@@ -216,6 +183,7 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
                         isToday &&
                         effectiveMinutes >= startMin &&
                         effectiveMinutes < endMin;
+                      const isPeach = idx % 2 === 0;
 
                       return (
                         <div
@@ -225,63 +193,64 @@ export const WeeklyGridView: React.FC<WeeklyGridViewProps> = ({
                               onOpenScheduleEdit(item);
                             }
                           }}
-                          className={`p-2.5 rounded-xl border text-xs transition-all relative ${
+                          className={`p-3 rounded-2xl border text-xs transition-all relative ${
                             isOverlap
-                              ? 'border-2 border-rose-500 bg-rose-50/60 dark:bg-rose-950/40 shadow-xs ring-2 ring-rose-500/20'
+                              ? 'border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100'
                               : isLive
-                              ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-md ring-2 ring-emerald-500/20'
-                              : getColorClasses(item.colorTheme)
+                              ? 'border-[#163E4B] bg-[#163E4B] text-white shadow-md'
+                              : isPeach
+                              ? 'bg-[#FCEADE] border-[#F4D3BA] text-[#163E4B] dark:bg-[#193E4C] dark:border-[#2B5A6B] dark:text-white'
+                              : 'bg-[#F7F7F5] border-[#EAEAE4] text-[#163E4B] dark:bg-[#0F2730] dark:border-[#214B59] dark:text-white'
                           } ${
-                            currentUser.role === 'teacher' ? 'cursor-pointer hover:scale-[1.02]' : ''
+                            currentUser.role === 'teacher'
+                              ? 'cursor-pointer hover:-translate-y-0.5'
+                              : ''
                           }`}
                         >
-                          {/* Live Ongoing Indicator */}
                           {isLive && (
-                            <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded bg-emerald-600 text-white font-extrabold text-[9px] uppercase tracking-wider animate-pulse shadow-xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                            <span className="inline-block mb-1 text-[10px] font-bold text-[#F4A950]">
                               Sedang Berlangsung (WITA)
                             </span>
                           )}
 
-                          {/* Overlap Badge */}
                           {isOverlap && (
-                            <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.2 rounded bg-rose-600 text-white font-bold text-[9px] uppercase tracking-wider">
+                            <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold text-[9px]">
                               <AlertTriangle className="w-2.5 h-2.5" />
                               Bentrok
                             </span>
                           )}
 
-                          {/* Live indicator badge */}
-                          {isLive && !isOverlap && (
-                            <span className="inline-flex items-center gap-1 mb-1 px-1.5 py-0.2 rounded bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                              Sedang KBM
-                            </span>
-                          )}
-
-                          {/* Subject Title */}
-                          <h4 className="font-bold text-xs text-slate-900 dark:text-white leading-tight">
+                          <h4 className="font-extrabold text-xs leading-snug">
                             {item.subjectName}
                           </h4>
 
-                          {/* Teacher Name */}
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1 mt-1 truncate">
-                            <UserCheck className="w-3 h-3 text-slate-400 shrink-0" />
+                          <p
+                            className={`text-[11px] flex items-center gap-1 mt-1 truncate ${
+                              isLive ? 'text-white/80' : 'text-[#5E747D] dark:text-[#AFC8D0]'
+                            }`}
+                          >
+                            <UserCheck className="w-3 h-3 text-[#F4A950] shrink-0" />
                             <span className="truncate">{item.teacherName}</span>
                           </p>
 
-                          {/* Time Slot */}
-                          <p className="text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
-                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <p
+                            className={`text-[10px] font-mono tabular-nums flex items-center gap-1 mt-1 ${
+                              isLive ? 'text-[#FCEADE]' : 'text-[#7B8D93] dark:text-[#98B4BE]'
+                            }`}
+                          >
+                            <Clock className="w-3 h-3 text-[#F4A950] shrink-0" />
                             <span>
                               {item.startTime} - {item.endTime}
                             </span>
                           </p>
 
-                          {/* Room Location (respect privacy setting) */}
                           {!privacySettings.hideSpecificLocations && item.roomLocation && (
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <p
+                              className={`text-[10px] flex items-center gap-1 mt-0.5 truncate ${
+                                isLive ? 'text-white/75' : 'text-[#7B8D93] dark:text-[#98B4BE]'
+                              }`}
+                            >
+                              <MapPin className="w-3 h-3 text-[#F4A950] shrink-0" />
                               <span className="truncate">{item.roomLocation}</span>
                             </p>
                           )}

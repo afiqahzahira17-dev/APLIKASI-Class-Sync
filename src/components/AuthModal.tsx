@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
+import { AVATAR_STUDENT_SVG, AVATAR_TEACHER_SVG } from '../data/mockData';
 import {
-  UserCheck,
   ShieldCheck,
-  Mail,
-  Lock,
-  User,
   GraduationCap,
-  Sparkles,
-  ArrowRight,
-  School,
-  IdCard,
+  X,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -46,43 +40,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1E25]/60 backdrop-blur-xs">
+      <div className="bg-white dark:bg-[#132F3A] rounded-[28px] max-w-md w-full p-5 shadow-[0_20px_50px_rgba(22,62,75,0.2)] border border-[#E8ECEE] dark:border-[#214B59] animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between pb-3.5 border-b border-[#E8ECEE] dark:border-[#214B59]">
           <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+            <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
               Autentikasi & Akun Pengguna
             </h3>
-            <p className="text-[11px] text-slate-500">
-              PRD 3.1: Sistem Peran Pengguna (Siswa & Guru)
+            <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC]">
+              Sistem Peran Pengguna (Siswa & Guru)
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+            className="text-[#8A9BA2] hover:text-[#163E4B] dark:hover:text-white p-1.5 rounded-full hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] transition-colors cursor-pointer"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab switcher: Quick Demo Switch vs Register New */}
-        <div className="flex rounded-xl bg-slate-100 dark:bg-slate-900 p-1 mt-3">
+        <div className="flex rounded-full bg-[#F7F7F5] dark:bg-[#0E242D] p-1 mt-3.5 border border-[#E8ECEE] dark:border-[#214B59]">
           <button
             onClick={() => setAuthMode('switch_demo')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
               authMode === 'switch_demo'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-500'
+                ? 'bg-[#163E4B] text-white shadow-xs'
+                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
             }`}
           >
             Pilih Akun Demo Cepat
           </button>
           <button
             onClick={() => setAuthMode('register')}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
               authMode === 'register'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-500'
+                ? 'bg-[#163E4B] text-white shadow-xs'
+                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
             }`}
           >
             Daftar Akun Baru
@@ -91,52 +85,68 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {authMode === 'switch_demo' ? (
           <div className="mt-4 space-y-2.5">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Uji pengalaman aplikasi secara instan sebagai <b>Guru Pengampu</b> atau <b>Siswa</b>:
+            <p className="text-xs text-[#6E828A] dark:text-[#96B2BC]">
+              Uji pengalaman aplikasi secara instan sebagai <b className="text-[#163E4B] dark:text-white">Guru Pengampu</b> atau <b className="text-[#163E4B] dark:text-white">Siswa</b>:
             </p>
 
             <div className="space-y-2">
               {allDemoUsers.map((user) => {
                 const isSelected = user.id === currentUser.id;
+                const fallbackAvatar =
+                  user.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
                 return (
                   <button
                     key={user.id}
                     onClick={() => handleSelectDemo(user.id)}
-                    className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                    className={`w-full p-3.5 rounded-[22px] border text-left flex items-center justify-between transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/60 ring-2 ring-indigo-500/20 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                        ? 'border-[#163E4B] bg-[#163E4B] text-white shadow-[0_8px_20px_rgba(22,62,75,0.18)]'
+                        : 'border-[#E8ECEE] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] hover:bg-[#FCEADE]/50 dark:hover:bg-[#193B48]'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <img
-                        src={user.avatarUrl}
+                        src={user.avatarUrl || fallbackAvatar}
                         alt={user.name}
-                        className="w-10 h-10 rounded-full object-cover border"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.src = fallbackAvatar;
+                        }}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-[#F4A950]/70 shrink-0 bg-[#FCEADE]"
                       />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`font-extrabold text-xs sm:text-sm truncate ${
+                              isSelected ? 'text-white' : 'text-[#163E4B] dark:text-white'
+                            }`}
+                          >
                             {user.name}
                           </span>
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.2 rounded capitalize ${
-                              user.role === 'teacher'
-                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isSelected
+                                ? 'bg-[#F4A950] text-[#163E4B]'
+                                : user.role === 'teacher'
+                                ? 'bg-[#163E4B] text-white'
+                                : 'bg-[#FCEADE] text-[#8A4F14]'
                             }`}
                           >
                             {user.role === 'teacher' ? 'Guru' : 'Siswa'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        <p
+                          className={`text-[11px] truncate tabular-nums mt-0.5 ${
+                            isSelected ? 'text-[#B8D0D8]' : 'text-[#6E828A] dark:text-[#96B2BC]'
+                          }`}
+                        >
                           {user.identifierNumber} • {user.email}
                         </p>
                       </div>
                     </div>
 
                     {isSelected && (
-                      <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border shadow-2xs">
+                      <span className="text-[10px] font-extrabold text-[#163E4B] bg-[#F4A950] px-2.5 py-0.5 rounded-full shrink-0 ml-2">
                         Aktif
                       </span>
                     )}
@@ -147,44 +157,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </div>
         ) : (
           <form onSubmit={handleRegisterSubmit} className="mt-4 space-y-3.5">
-            {/* Role selector (PRD 3.1: Role selection Siswa atau Guru) */}
+            {/* Role selector */}
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Pilih Peran Pengguna (Role Selection) *
+              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1.5">
+                Pilih Peran Pengguna *
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setRole('student')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
+                  className={`p-3 rounded-[20px] border text-center transition-all cursor-pointer ${
                     role === 'student'
-                      ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                      ? 'border-[#F4A950] bg-[#FCEADE] text-[#163E4B] font-bold ring-2 ring-[#F4A950]/30'
+                      : 'border-[#E8ECEE] dark:border-[#214B59] text-[#6E828A] dark:text-[#96B2BC]'
                   }`}
                 >
-                  <GraduationCap className="w-5 h-5 mx-auto mb-1 text-emerald-600" />
-                  <span className="text-xs block">Siswa (Student)</span>
-                  <span className="text-[10px] opacity-70 block">Pantau jadwal & kumpul tugas</span>
+                  <GraduationCap className="w-5 h-5 mx-auto mb-1 text-[#E59638]" />
+                  <span className="text-xs block font-bold">Siswa (Student)</span>
+                  <span className="text-[10px] opacity-75 block">Pantau jadwal & kumpul tugas</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setRole('teacher')}
-                  className={`p-3 rounded-xl border text-center transition-all ${
+                  className={`p-3 rounded-[20px] border text-center transition-all cursor-pointer ${
                     role === 'teacher'
-                      ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 font-bold ring-2 ring-indigo-500/20'
-                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                      ? 'border-[#163E4B] bg-[#163E4B] text-white font-bold ring-2 ring-[#163E4B]/20'
+                      : 'border-[#E8ECEE] dark:border-[#214B59] text-[#6E828A] dark:text-[#96B2BC]'
                   }`}
                 >
-                  <ShieldCheck className="w-5 h-5 mx-auto mb-1 text-indigo-600" />
-                  <span className="text-xs block">Guru (Teacher)</span>
-                  <span className="text-[10px] opacity-70 block">Atur jadwal, tugas & nilai</span>
+                  <ShieldCheck
+                    className={`w-5 h-5 mx-auto mb-1 ${
+                      role === 'teacher' ? 'text-[#F4A950]' : 'text-[#163E4B] dark:text-[#9BBAC4]'
+                    }`}
+                  />
+                  <span className="text-xs block font-bold">Guru (Teacher)</span>
+                  <span className="text-[10px] opacity-75 block">Atur jadwal, tugas & nilai</span>
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
                 Nama Lengkap & Gelar *
               </label>
               <input
@@ -193,12 +207,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 placeholder="Contoh: Afiqah Zahira atau Drs. Sutrisno, M.Pd"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
                 Alamat Email *
               </label>
               <input
@@ -207,12 +221,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 placeholder="user@sekolah.sch.id"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
                 {role === 'teacher' ? 'Nomor Induk Pegawai (NIP)' : 'Nomor Induk Siswa Nasional (NISN)'}
               </label>
               <input
@@ -220,7 +234,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 placeholder={role === 'teacher' ? '198205142008012014' : '0071239841'}
                 value={identifierNumber}
                 onChange={(e) => setIdentifierNumber(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 text-xs font-mono tabular-nums rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
               />
             </div>
 
@@ -228,13 +242,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] dark:text-[#96B2BC] hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                className="px-5 py-2 text-xs font-extrabold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] shadow-sm cursor-pointer transition-colors"
               >
                 Simpan & Masuk
               </button>
