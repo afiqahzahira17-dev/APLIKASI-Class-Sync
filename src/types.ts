@@ -5,10 +5,11 @@ export interface User {
   name: string;
   email: string;
   password?: string;
+  hasChangedPassword?: boolean;
   role: UserRole;
   avatarUrl: string;
-  identifierNumber: string; // NISN for student, NIP for teacher
-  className?: string; // e.g. "X MIPA 1"
+  identifierNumber: string; // NIS for student, NIP for teacher
+  className?: string; // e.g. "IX A"
   joinedClassIds?: string[]; // Mendukung gabung ke 2 kelas atau lebih
   schoolName: string;
   phone?: string; // WhatsApp number

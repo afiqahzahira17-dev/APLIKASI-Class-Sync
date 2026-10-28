@@ -21,7 +21,6 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
   const {
     currentUser,
     classes,
-    allClasses,
     joinMultipleClassesByCodes,
     createMultipleClasses,
   } = useApp();
@@ -53,36 +52,13 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const enrolledIdsSet = new Set(classes.map((c) => c.id));
-
-  const toggleQuickSelectClassCode = (code: string) => {
-    const upper = code.toUpperCase();
-    setJoinResult(null);
-    setCodeInputs((prev) => {
-      const exists = prev.some((c) => c.trim().toUpperCase() === upper);
-      if (exists) {
-        const filtered = prev.filter((c) => c.trim().toUpperCase() !== upper);
-        return filtered.length < 2
-          ? [...filtered, ...Array(2 - filtered.length).fill('')]
-          : filtered;
-      }
-      const emptyIdx = prev.findIndex((c) => !c.trim());
-      if (emptyIdx >= 0) {
-        const copy = [...prev];
-        copy[emptyIdx] = upper;
-        return copy;
-      }
-      return [...prev, upper];
-    });
-  };
-
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     const validCodes = codeInputs.map((c) => c.trim()).filter(Boolean);
     if (validCodes.length === 0) {
       setJoinResult({
         success: false,
-        message: 'Masukkan atau pilih minimal satu kode kelas terlebih dahulu.',
+        message: 'Masukkan minimal satu kode kelas dari guru Anda terlebih dahulu.',
       });
       return;
     }
@@ -257,76 +233,9 @@ export const ClassModal: React.FC<ClassModalProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Available Classes Directory in School so Users Can Easily Pick 2+ Classes */}
-            {allClasses.length > 0 && (
-              <div className="p-3.5 rounded-2xl bg-[#F7F7F5] dark:bg-[#0E242D] border border-[#E8ECEE] dark:border-[#214B59] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
-                    Kelas Terdaftar di Sekolah ({allClasses.length})
-                  </span>
-                  <span className="text-[10px] text-[#6E828A] dark:text-[#96B2BC]">
-                    Klik untuk pilih cepat
-                  </span>
-                </div>
-
-                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-0.5">
-                  {allClasses.map((cls) => {
-                    const isAlreadyJoined = enrolledIdsSet.has(cls.id);
-                    const isSelectedCode = codeInputs.some(
-                      (c) => c.trim().toUpperCase() === cls.code.toUpperCase()
-                    );
-
-                    return (
-                      <div
-                        key={cls.id}
-                        className="p-2.5 rounded-xl bg-white dark:bg-[#132F3A] border border-[#E6EAEB] dark:border-[#214B59] flex items-center justify-between gap-2 text-xs"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-extrabold text-[#163E4B] dark:text-white truncate">
-                            {cls.name}
-                          </p>
-                          <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] truncate tabular-nums">
-                            {cls.teacherName} · Kode:{' '}
-                            <span className="font-mono font-bold text-[#163E4B] dark:text-[#F4A950]">
-                              {cls.code}
-                            </span>
-                          </p>
-                        </div>
-
-                        {isAlreadyJoined ? (
-                          <span className="px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shrink-0 flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            <span>Tergabung</span>
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toggleQuickSelectClassCode(cls.code)}
-                            className={`px-3 py-1 rounded-xl text-[11px] font-extrabold shrink-0 transition-all cursor-pointer flex items-center gap-1 ${
-                              isSelectedCode
-                                ? 'bg-[#163E4B] text-white'
-                                : 'bg-[#FCEADE] text-[#163E4B] hover:bg-[#F7D9C2]'
-                            }`}
-                          >
-                            {isSelectedCode ? (
-                              <>
-                                <Check className="w-3 h-3 text-[#F4A950]" />
-                                <span>Dipilih</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-3 h-3 text-[#E59638]" />
-                                <span>Pilih</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] leading-relaxed">
+              Mintalah kode kelas kepada Guru Pengampu atau Wali Kelas Anda, lalu ketikkan pada kolom di atas untuk bergabung.
+            </p>
 
             {joinResult && (
               <div

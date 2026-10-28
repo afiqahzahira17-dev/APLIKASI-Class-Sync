@@ -93,6 +93,10 @@ export const AssignmentView: React.FC<AssignmentViewProps> = ({ onOpenClassModal
     currentUser.attendanceNumber || 1
   );
 
+  React.useEffect(() => {
+    setAttendanceNumberInput(currentUser.attendanceNumber || 1);
+  }, [currentUser.id, currentUser.attendanceNumber]);
+
   const [sortSubmissionBy, setSortSubmissionBy] = useState<'attendance' | 'time'>('attendance');
 
   const [showXpGuide, setShowXpGuide] = useState(false);

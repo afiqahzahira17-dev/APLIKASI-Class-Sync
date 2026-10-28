@@ -35,7 +35,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 }) => {
   const {
     currentUser,
-    switchRole,
     activeClass,
     classes,
     setActiveClass,
@@ -91,16 +90,16 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
 
           {/* Right Actions: Role toggle, WITA Clock, XP Info, Theme, Bell, Profile */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            {/* Quick Switch Role Pill */}
+            {/* Active Role Profile Trigger (Opens User's Own Session Info) */}
             <button
               id="switch-role-header-btn"
-              onClick={switchRole}
+              onClick={onOpenAuth}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all border shrink-0 cursor-pointer whitespace-nowrap ${
                 currentUser.role === 'teacher'
                   ? 'bg-[#163E4B] border-[#163E4B] text-white hover:bg-[#10303B] shadow-2xs'
                   : 'bg-[#FCEADE] border-[#F2CFAF] text-[#163E4B] hover:bg-[#F9DFCD] dark:bg-[#1A3F4C] dark:border-[#2C5B6C] dark:text-[#FCEADE]'
               }`}
-              title="Ganti peran antara Guru dan Siswa"
+              title="Informasi Akun Aktif"
             >
               <ShieldCheck className="w-3 h-3 text-[#F4A950]" />
               <span>{currentUser.role === 'teacher' ? 'Guru' : 'Siswa'}</span>

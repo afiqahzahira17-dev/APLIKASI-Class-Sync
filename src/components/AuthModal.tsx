@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole } from '../types';
 import { AVATAR_STUDENT_SVG, AVATAR_TEACHER_SVG } from '../data/mockData';
 import {
   ShieldCheck,
   GraduationCap,
   X,
   LogOut,
+  Link2,
+  Check,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -15,288 +21,265 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, allDemoUsers, allClasses, loginAsUser, registerUser, logout } = useApp();
+  const { currentUser, classes, logout, updateUserPassword } = useApp();
+  const [copiedPortal, setCopiedPortal] = useState<'siswa' | 'guru' | null>(null);
 
-  const [authMode, setAuthMode] = useState<'switch_demo' | 'register'>('switch_demo');
+  const isTeacher = currentUser.role === 'teacher';
+  const isDefaultStudentPass = !isTeacher && !currentUser.hasChangedPassword;
 
-  // Register form state
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('123');
-  const [role, setRole] = useState<UserRole>('student');
-  const [identifierNumber, setIdentifierNumber] = useState('');
+  const [currentPassword, setCurrentPassword] = useState(isDefaultStudentPass ? '0000' : '');
+  const [newPassword, setNewPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPassword(!isTeacher && !currentUser.hasChangedPassword ? '0000' : '');
+      setNewPassword('');
+      setPasswordFeedback(null);
+    }
+  }, [isOpen, isTeacher, currentUser.id, currentUser.hasChangedPassword]);
 
   if (!isOpen) return null;
 
-  const handleSelectDemo = (userId: string) => {
-    loginAsUser(userId);
-    onClose();
+  const fallbackAvatar = isTeacher ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
+  const isPlaceholderStudentEmail = currentUser.email?.endsWith('@siswa.classywork.local');
+
+  const handleCopyPortalLink = (portal: 'siswa' | 'guru') => {
+    const url = `${window.location.origin}/?portal=${portal}`;
+    navigator.clipboard.writeText(url);
+    setCopiedPortal(portal);
+    setTimeout(() => setCopiedPortal(null), 2000);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handlePasswordChangeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
-
-    registerUser(
-      name.trim(),
-      email.trim(),
-      role,
-      identifierNumber.trim() || '0071239999',
-      password.trim() || '123'
-    );
-    onClose();
+    setPasswordFeedback(null);
+    const res = updateUserPassword(currentPassword, newPassword);
+    if (res.success) {
+      setPasswordFeedback({ type: 'success', text: res.message });
+      setCurrentPassword('');
+      setNewPassword('');
+    } else {
+      setPasswordFeedback({ type: 'error', text: res.message });
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1E25]/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-[#132F3A] rounded-[28px] max-w-md w-full p-5 shadow-[0_20px_50px_rgba(22,62,75,0.2)] border border-[#E8ECEE] dark:border-[#214B59] animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B1E25]/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-[#132F3A] rounded-[28px] max-w-md w-full p-5 shadow-[0_20px_50px_rgba(22,62,75,0.2)] border border-[#E8ECEE] dark:border-[#214B59] my-auto">
         <div className="flex items-center justify-between pb-3.5 border-b border-[#E8ECEE] dark:border-[#214B59]">
           <div>
             <h3 className="font-extrabold text-[#163E4B] dark:text-white text-base">
-              Autentikasi & Akun Pengguna
+              Profil & Keamanan Akun
             </h3>
             <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC]">
-              Sistem Peran Pengguna (Siswa & Guru)
+              {isTeacher ? 'Portal Guru & Wali Kelas' : 'Portal Belajar Siswa'}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-[#8A9BA2] hover:text-[#163E4B] dark:hover:text-white p-1.5 rounded-full hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] transition-colors cursor-pointer"
+            className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[#8A9BA2] hover:text-[#163E4B] dark:hover:text-white rounded-full hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Tab switcher: Quick Demo Switch vs Register New */}
-        <div className="flex rounded-full bg-[#F7F7F5] dark:bg-[#0E242D] p-1 mt-3.5 border border-[#E8ECEE] dark:border-[#214B59]">
-          <button
-            onClick={() => setAuthMode('switch_demo')}
-            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
-              authMode === 'switch_demo'
-                ? 'bg-[#163E4B] text-white shadow-xs'
-                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
-            }`}
-          >
-            Pilih Akun Demo Cepat
-          </button>
-          <button
-            onClick={() => setAuthMode('register')}
-            className={`flex-1 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
-              authMode === 'register'
-                ? 'bg-[#163E4B] text-white shadow-xs'
-                : 'text-[#6E828A] hover:text-[#163E4B] dark:text-[#96B2BC]'
-            }`}
-          >
-            Daftar Akun Baru
-          </button>
-        </div>
+        <div className="mt-4 space-y-4">
+          {/* Active User Profile Card */}
+          <div className="p-4 rounded-[22px] bg-[#163E4B] text-white flex items-center gap-3.5">
+            <img
+              src={currentUser.avatarUrl || fallbackAvatar}
+              alt={currentUser.name}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src = fallbackAvatar;
+              }}
+              className="w-12 h-12 rounded-full object-cover border-2 border-[#F4A950] shrink-0 bg-[#FCEADE]"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-extrabold text-sm text-white truncate">
+                  {currentUser.name}
+                </span>
+                <span className="text-xs font-bold text-[#F4A950] inline-flex items-center gap-1 whitespace-nowrap">
+                  ·{' '}
+                  {isTeacher ? (
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  ) : (
+                    <GraduationCap className="w-3.5 h-3.5" />
+                  )}
+                  {isTeacher ? 'Guru' : 'Siswa'}
+                </span>
+              </div>
 
-        {authMode === 'switch_demo' ? (
-          <div className="mt-4 space-y-2.5">
-            <p className="text-xs text-[#6E828A] dark:text-[#96B2BC]">
-              Uji pengalaman aplikasi secara instan sebagai <b className="text-[#163E4B] dark:text-white">Guru Pengampu</b> atau <b className="text-[#163E4B] dark:text-white">Siswa</b>:
-            </p>
+              {!isPlaceholderStudentEmail && currentUser.email && (
+                <p className="text-xs text-[#C6DCE3] truncate mt-0.5">{currentUser.email}</p>
+              )}
 
-            <div className="space-y-2">
-              {allDemoUsers.map((user) => {
-                const isSelected = user.id === currentUser.id;
-                const fallbackAvatar =
-                  user.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
-                const userClassCount = allClasses.filter(
-                  (c) =>
-                    (user.role === 'teacher' && c.teacherId === user.id) ||
-                    (user.joinedClassIds || []).includes(c.id)
-                ).length;
-                return (
-                  <button
-                    key={user.id}
-                    onClick={() => handleSelectDemo(user.id)}
-                    className={`w-full p-3.5 rounded-[22px] border text-left flex items-center justify-between transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-[#163E4B] bg-[#163E4B] text-white shadow-[0_8px_20px_rgba(22,62,75,0.18)]'
-                        : 'border-[#E8ECEE] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] hover:bg-[#FCEADE]/50 dark:hover:bg-[#193B48]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={user.avatarUrl || fallbackAvatar}
-                        alt={user.name}
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          e.currentTarget.src = fallbackAvatar;
-                        }}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-[#F4A950]/70 shrink-0 bg-[#FCEADE]"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={`font-extrabold text-xs sm:text-sm truncate ${
-                              isSelected ? 'text-white' : 'text-[#163E4B] dark:text-white'
-                            }`}
-                          >
-                            {user.name}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              isSelected
-                                ? 'bg-[#F4A950] text-[#163E4B]'
-                                : user.role === 'teacher'
-                                ? 'bg-[#163E4B] text-white'
-                                : 'bg-[#FCEADE] text-[#8A4F14]'
-                            }`}
-                          >
-                            {user.role === 'teacher' ? 'Guru' : 'Siswa'}
-                          </span>
-                        </div>
-                        <p
-                          className={`text-[11px] truncate tabular-nums mt-0.5 ${
-                            isSelected ? 'text-[#B8D0D8]' : 'text-[#6E828A] dark:text-[#96B2BC]'
-                          }`}
-                        >
-                          {user.identifierNumber} · {userClassCount} Kelas
-                        </p>
-                      </div>
-                    </div>
-
-                    {isSelected && (
-                      <span className="text-[10px] font-extrabold text-[#163E4B] bg-[#F4A950] px-2.5 py-0.5 rounded-full shrink-0 ml-2">
-                        Aktif
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="pt-3 border-t border-[#E8ECEE] dark:border-[#214B59]">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  logout();
-                }}
-                className="w-full py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-800/70 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-xs font-extrabold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Keluar ke Halaman Login Utama</span>
-              </button>
+              <p className="text-[11px] text-[#FCEADE]/90 font-mono tabular-nums mt-0.5">
+                {!isTeacher && currentUser.attendanceNumber
+                  ? `No. Absen ${currentUser.attendanceNumber} · `
+                  : ''}
+                {currentUser.identifierNumber} · {classes.length} Kelas Aktif
+              </p>
             </div>
           </div>
-        ) : (
-          <form onSubmit={handleRegisterSubmit} className="mt-4 space-y-3.5">
-            {/* Role selector */}
-            <div>
-              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1.5">
-                Pilih Peran Pengguna *
-              </label>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  className={`p-3 rounded-[20px] border text-center transition-all cursor-pointer ${
-                    role === 'student'
-                      ? 'border-[#F4A950] bg-[#FCEADE] text-[#163E4B] font-bold ring-2 ring-[#F4A950]/30'
-                      : 'border-[#E8ECEE] dark:border-[#214B59] text-[#6E828A] dark:text-[#96B2BC]'
-                  }`}
-                >
-                  <GraduationCap className="w-5 h-5 mx-auto mb-1 text-[#E59638]" />
-                  <span className="text-xs block font-bold">Siswa (Student)</span>
-                  <span className="text-[10px] opacity-75 block">Pantau jadwal & kumpul tugas</span>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => setRole('teacher')}
-                  className={`p-3 rounded-[20px] border text-center transition-all cursor-pointer ${
-                    role === 'teacher'
-                      ? 'border-[#163E4B] bg-[#163E4B] text-white font-bold ring-2 ring-[#163E4B]/20'
-                      : 'border-[#E8ECEE] dark:border-[#214B59] text-[#6E828A] dark:text-[#96B2BC]'
-                  }`}
-                >
-                  <ShieldCheck
-                    className={`w-5 h-5 mx-auto mb-1 ${
-                      role === 'teacher' ? 'text-[#F4A950]' : 'text-[#163E4B] dark:text-[#9BBAC4]'
-                    }`}
+          {/* Ubah Kata Sandi Section */}
+          <form
+            onSubmit={handlePasswordChangeSubmit}
+            className="p-4 rounded-2xl bg-[#F7F7F5] dark:bg-[#0E242D] border border-[#E8ECEE] dark:border-[#214B59] space-y-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-[#E59638]" />
+                <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
+                  Ubah Kata Sandi Akun
+                </span>
+              </div>
+              {isDefaultStudentPass && (
+                <span className="text-[11px] font-medium text-[#7A562C] dark:text-[#F4A950] font-mono tabular-nums">
+                  Sandi awal: 0000
+                </span>
+              )}
+            </div>
+
+            {passwordFeedback && (
+              <div
+                className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
+                  passwordFeedback.type === 'success'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                    : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                }`}
+              >
+                {passwordFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                )}
+                <span className="font-medium leading-snug">{passwordFeedback.text}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-[11px] font-bold text-[#4F6872] dark:text-[#A9C4CD] block mb-1">
+                  Sandi Saat Ini
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder={isDefaultStudentPass ? '0000' : 'Sandi lama'}
+                  className="w-full min-h-[40px] px-3 py-2 text-xs font-mono tabular-nums rounded-xl border border-[#DCE4E7] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-[#4F6872] dark:text-[#A9C4CD] block mb-1">
+                  Sandi Baru
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords ? 'text' : 'password'}
+                    required
+                    minLength={3}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 3 karakter"
+                    className="w-full min-h-[40px] pl-3 pr-9 py-2 text-xs font-mono tabular-nums rounded-xl border border-[#DCE4E7] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                   />
-                  <span className="text-xs block font-bold">Guru (Teacher)</span>
-                  <span className="text-[10px] opacity-75 block">Atur jadwal, tugas & nilai</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords((prev) => !prev)}
+                    className="absolute right-2 top-1 min-h-[32px] min-w-[28px] flex items-center justify-center text-[#7A8E96] hover:text-[#163E4B] dark:hover:text-white cursor-pointer"
+                    title={showPasswords ? 'Sembunyikan' : 'Tampilkan'}
+                  >
+                    {showPasswords ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
-                Nama Lengkap & Gelar *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: Afiqah Zahira atau Drs. Sutrisno, M.Pd"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-              />
-            </div>
+            <button
+              type="submit"
+              className="w-full min-h-[40px] py-2 px-4 rounded-xl bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Simpan Kata Sandi Baru</span>
+            </button>
+          </form>
 
-            <div>
-              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
-                Alamat Email *
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="user@sekolah.sch.id"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
-                Kata Sandi Akun *
-              </label>
-              <input
-                type="password"
-                required
-                minLength={3}
-                placeholder="Minimal 3 karakter"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-[#163E4B] dark:text-[#E2EEF2] block mb-1">
-                {role === 'teacher' ? 'Nomor Induk Pegawai (NIP)' : 'Nomor Induk Siswa Nasional (NISN)'}
-              </label>
-              <input
-                type="text"
-                placeholder={role === 'teacher' ? '198205142008012014' : '0071239841'}
-                value={identifierNumber}
-                onChange={(e) => setIdentifierNumber(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs font-mono tabular-nums rounded-2xl border border-[#DCE4E7] dark:border-[#214B59] bg-[#F7F7F5] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-              />
-            </div>
-
-            <div className="pt-2 flex justify-end gap-2">
+          {/* Direct Portal Links Copy Section */}
+          <div className="p-3.5 rounded-2xl bg-[#F7F7F5] dark:bg-[#0E242D] border border-[#E8ECEE] dark:border-[#214B59] space-y-2.5">
+            <span className="text-xs font-bold text-[#163E4B] dark:text-white block">
+              Tautan Halaman Login Terpisah
+            </span>
+            <div className={`grid gap-2 ${isTeacher ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold rounded-full text-[#6E828A] dark:text-[#96B2BC] hover:bg-[#F7F7F5] dark:hover:bg-[#193B48] cursor-pointer"
+                onClick={() => handleCopyPortalLink('siswa')}
+                className="min-h-[40px] px-3 py-2 rounded-xl bg-white dark:bg-[#132F3A] border border-[#DCE4E7] dark:border-[#245060] text-xs font-bold text-[#163E4B] dark:text-[#FCEADE] hover:border-[#F4A950] flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
               >
-                Batal
+                {copiedPortal === 'siswa' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Link Siswa Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="w-3.5 h-3.5 text-[#E59638]" />
+                    <span>Salin Link Login Siswa</span>
+                  </>
+                )}
               </button>
-              <button
-                type="submit"
-                className="px-5 py-2 text-xs font-extrabold rounded-full bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] shadow-sm cursor-pointer transition-colors"
-              >
-                Simpan & Masuk
-              </button>
+
+              {isTeacher && (
+                <button
+                  type="button"
+                  onClick={() => handleCopyPortalLink('guru')}
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-white dark:bg-[#132F3A] border border-[#DCE4E7] dark:border-[#245060] text-xs font-bold text-[#163E4B] dark:text-white hover:border-[#163E4B] dark:hover:border-[#F4A950] flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  {copiedPortal === 'guru' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Link Guru Tersalin</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-3.5 h-3.5 text-[#163E4B] dark:text-[#F4A950]" />
+                      <span>Salin Link Guru</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-          </form>
-        )}
+          </div>
+
+          {/* Logout Button */}
+          <div className="pt-2 border-t border-[#E8ECEE] dark:border-[#214B59]">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              className="w-full min-h-[44px] py-2.5 px-4 rounded-2xl border border-rose-200 dark:border-rose-800/70 bg-rose-50/70 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-950/70 text-rose-700 dark:text-rose-300 text-xs font-extrabold flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Keluar ke Halaman Login {isTeacher ? 'Guru' : 'Siswa'}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

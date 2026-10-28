@@ -18,6 +18,7 @@ import { getWitaNow, minutesToTimeString, timeToMinutes } from '../utils/witaTim
 import {
   INITIAL_TEACHER,
   INITIAL_STUDENT,
+  REGISTERED_STUDENTS_SEED,
   AVATAR_STUDENT_SVG,
   AVATAR_TEACHER_SVG,
   INITIAL_CLASSES,
@@ -44,7 +45,7 @@ import {
 
 export interface RegisterAccountInput {
   name: string;
-  email: string;
+  email?: string;
   password: string;
   role: UserRole;
   identifierNumber: string;
@@ -72,7 +73,12 @@ interface AppContextType {
   loginWithCredentials: (
     identifier: string,
     password: string,
-    role: UserRole
+    role: UserRole,
+    classCodesToJoin?: string[]
+  ) => { success: boolean; message: string };
+  updateUserPassword: (
+    currentPassword: string,
+    newPassword: string
   ) => { success: boolean; message: string };
   quickLoginAccount: (userId: string) => void;
   registerAccount: (input: RegisterAccountInput) => {
@@ -222,18 +228,109 @@ const normalizeAvatar = (user: User): User => {
         ? AVATAR_TEACHER_SVG
         : AVATAR_STUDENT_SVG
       : user.avatarUrl;
+  const defaultPass = user.role === 'student' ? '0000' : '123';
+  const effectivePassword =
+    user.role === 'student' && !user.hasChangedPassword
+      ? '0000'
+      : user.password || defaultPass;
   return {
     ...user,
     avatarUrl: avatar,
-    password: user.password || '123',
+    password: effectivePassword,
+    hasChangedPassword: Boolean(user.hasChangedPassword),
   };
+};
+
+export const getPortalRoleFromUrl = (): UserRole => {
+  if (typeof window === 'undefined') return 'student';
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.toLowerCase();
+  const portalParam = (params.get('portal') || '').toLowerCase();
+  const roleParam = (params.get('role') || '').toLowerCase();
+
+  if (
+    path === '/login-guru' ||
+    path === '/portal-guru' ||
+    path === '/daftar-guru' ||
+    path === '/guru' ||
+    portalParam === 'guru' ||
+    portalParam === 'teacher' ||
+    roleParam === 'guru' ||
+    roleParam === 'teacher' ||
+    hash === '#guru' ||
+    hash === '#login-guru' ||
+    hash === '#portal-guru'
+  ) {
+    return 'teacher';
+  }
+
+  return 'student';
+};
+
+const isDirectLoginUrl = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.toLowerCase();
+  const pageParam = (params.get('page') || '').toLowerCase();
+  const authParam = (params.get('auth') || '').toLowerCase();
+  const portalParam = (params.get('portal') || '').toLowerCase();
+  const roleParam = (params.get('role') || '').toLowerCase();
+  return (
+    path === '/login' ||
+    path === '/masuk' ||
+    path === '/register' ||
+    path === '/daftar' ||
+    path === '/login-siswa' ||
+    path === '/login-guru' ||
+    path === '/portal-siswa' ||
+    path === '/portal-guru' ||
+    path === '/daftar-siswa' ||
+    path === '/daftar-guru' ||
+    path === '/siswa' ||
+    path === '/guru' ||
+    portalParam === 'siswa' ||
+    portalParam === 'guru' ||
+    portalParam === 'student' ||
+    portalParam === 'teacher' ||
+    roleParam === 'siswa' ||
+    roleParam === 'guru' ||
+    roleParam === 'student' ||
+    roleParam === 'teacher' ||
+    pageParam === 'login' ||
+    pageParam === 'masuk' ||
+    pageParam === 'register' ||
+    pageParam === 'daftar' ||
+    authParam === 'login' ||
+    params.has('login') ||
+    hash === '#login' ||
+    hash === '#register' ||
+    hash === '#siswa' ||
+    hash === '#guru' ||
+    hash === '#login-siswa' ||
+    hash === '#login-guru'
+  );
+};
+
+const clearLoginUrlParams = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.history.replaceState({}, '', '/');
+  } catch {
+    // Ignore history state errors in restricted iframes
+  }
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const DATA_VERSION = 'v5_clean_no_sample_data';
 
-  // Dedicated Login Session Gate: tidak langsung masuk sebelum login
+  // Dedicated Login Session Gate: langsung menuju LoginPage jika belum login ATAU jika membuka link khusus login
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (isDirectLoginUrl()) {
+      localStorage.setItem('classsync_auth_active', 'false');
+      return false;
+    }
     return localStorage.getItem('classsync_auth_active') === 'true';
   });
 
@@ -256,20 +353,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Registered accounts store (Guru & Siswa)
+  // Registered accounts store (Guru & 32 Siswa Kelas IX A Terdaftar)
   const [registeredUsers, setRegisteredUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('classsync_registered_users');
-    const existingIds = allClasses.map((c) => c.id);
 
     const seedDefaults: User[] = [
       normalizeAvatar({
         ...INITIAL_TEACHER,
-        joinedClassIds: existingIds,
+        joinedClassIds: allClasses
+          .filter((c) => c.teacherId === INITIAL_TEACHER.id)
+          .map((c) => c.id),
       }),
-      normalizeAvatar({
-        ...INITIAL_STUDENT,
-        joinedClassIds: existingIds,
-      }),
+      ...REGISTERED_STUDENTS_SEED.map((stu) =>
+        normalizeAvatar({
+          ...stu,
+          joinedClassIds: [],
+        })
+      ),
     ];
 
     if (!saved) {
@@ -277,11 +377,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      const parsed: User[] = JSON.parse(saved).map(normalizeAvatar);
+      const parsed: User[] = JSON.parse(saved)
+        .filter((u: User) => u.id !== 'student-1')
+        .map(normalizeAvatar);
+
       const merged = [...parsed];
       for (const def of seedDefaults) {
-        if (!merged.some((u) => u.id === def.id)) {
+        const defDigits = def.identifierNumber.replace(/[^0-9]/g, '');
+        const existingIdx = merged.findIndex((u) => {
+          if (u.id === def.id) return true;
+          const uDigits = u.identifierNumber.replace(/[^0-9]/g, '');
+          return u.role === def.role && defDigits.length >= 6 && uDigits === defDigits;
+        });
+
+        if (existingIdx < 0) {
           merged.push(def);
+        } else {
+          const existing = merged[existingIdx];
+          merged[existingIdx] = {
+            ...def,
+            ...existing,
+            name: def.role === 'student' ? def.name : existing.name,
+            identifierNumber:
+              def.role === 'student' ? def.identifierNumber : existing.identifierNumber,
+            attendanceNumber: existing.attendanceNumber || def.attendanceNumber,
+            password:
+              existing.role === 'student' && !existing.hasChangedPassword
+                ? '0000'
+                : existing.password || def.password,
+          };
         }
       }
       return merged;
@@ -294,22 +418,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUserState] = useState<User>(() => {
     const version = localStorage.getItem('classsync_version');
     const saved = localStorage.getItem('classsync_user');
-    const existingIds = allClasses.map((c) => c.id);
 
     if (version !== DATA_VERSION || !saved) {
-      return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+      return { ...INITIAL_STUDENT, joinedClassIds: [] };
     }
     try {
       const parsed: User = normalizeAvatar(JSON.parse(saved));
-      if (parsed.name.includes('Ahmad Fauzi') || parsed.name.includes('Fathir')) {
-        return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+      if (
+        parsed.id === 'student-1' ||
+        parsed.name.includes('Ahmad Fauzi') ||
+        parsed.name.includes('Fathir')
+      ) {
+        return { ...INITIAL_STUDENT, joinedClassIds: parsed.joinedClassIds || [] };
       }
       if (parsed.joinedClassIds === undefined) {
-        parsed.joinedClassIds = existingIds;
+        parsed.joinedClassIds = [];
       }
       return parsed;
     } catch {
-      return { ...INITIAL_STUDENT, joinedClassIds: existingIds };
+      return { ...INITIAL_STUDENT, joinedClassIds: [] };
     }
   });
 
@@ -438,6 +565,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem('classsync_auth_active', isAuthenticated ? 'true' : 'false');
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleUrlRouteCheck = () => {
+      if (isDirectLoginUrl()) {
+        setIsAuthenticated(false);
+        localStorage.setItem('classsync_auth_active', 'false');
+      }
+    };
+    window.addEventListener('popstate', handleUrlRouteCheck);
+    window.addEventListener('hashchange', handleUrlRouteCheck);
+    return () => {
+      window.removeEventListener('popstate', handleUrlRouteCheck);
+      window.removeEventListener('hashchange', handleUrlRouteCheck);
+    };
+  }, []);
 
   // Waktu Indonesia Tengah (WITA, UTC+8) Realtime & Simulation state
   const initialWita = getWitaNow();
@@ -608,6 +750,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             await supabase.from('announcements').upsert(mapAnnouncementToDb(ann));
           }
         }
+      }
+
+      // 6. Profiles (Sync student class enrollments across devices while keeping local passwords safe)
+      const { data: dbProfiles, error: profErr } = await supabase.from('profiles').select('*');
+      if (!profErr && dbProfiles && dbProfiles.length > 0) {
+        setRegisteredUsers((prev) => {
+          const mapById = new Map<string, User>();
+          prev.forEach((u) => mapById.set(u.id, u));
+          dbProfiles.forEach((row: any) => {
+            if (!row.id || row.id === 'student-1') return;
+            const parsedClassIds = String(row.class_name || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => s.startsWith('class-'));
+            const existing = mapById.get(row.id);
+            if (existing) {
+              const combinedIds = Array.from(
+                new Set([...(existing.joinedClassIds || []), ...parsedClassIds])
+              );
+              mapById.set(row.id, { ...existing, joinedClassIds: combinedIds });
+            } else {
+              mapById.set(
+                row.id,
+                normalizeAvatar({
+                  id: row.id,
+                  name: row.name || 'Siswa',
+                  email: row.email || '',
+                  role: row.role === 'teacher' ? 'teacher' : 'student',
+                  avatarUrl: row.avatar_url || AVATAR_STUDENT_SVG,
+                  identifierNumber: row.identifier_number || '',
+                  joinedClassIds: parsedClassIds,
+                  schoolName: row.school_name || 'MTs / SMP',
+                })
+              );
+            }
+          });
+          return Array.from(mapById.values());
+        });
       }
     } catch (err) {
       console.warn('Supabase sync skipped:', err);
@@ -796,7 +976,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginWithCredentials = (
     identifier: string,
     password: string,
-    role: UserRole
+    role: UserRole,
+    classCodesToJoin?: string[]
   ): { success: boolean; message: string } => {
     const cleanId = identifier.trim().toLowerCase();
     const cleanDigits = identifier.replace(/[^0-9]/g, '');
@@ -805,41 +986,176 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!cleanId || !cleanPass) {
       return {
         success: false,
-        message: 'Mohon isi email / nomor induk serta kata sandi Anda.',
+        message:
+          role === 'student'
+            ? 'Mohon isi NIS dan kata sandi Anda terlebih dahulu.'
+            : 'Mohon isi email / NIP serta kata sandi Anda terlebih dahulu.',
       };
     }
 
     const candidates = registeredUsers.filter((u) => u.role === role);
     const matched = candidates.find((u) => {
-      const emailMatch = u.email.trim().toLowerCase() === cleanId;
       const idStrMatch = u.identifierNumber.trim().toLowerCase() === cleanId;
       const uDigits = u.identifierNumber.replace(/[^0-9]/g, '');
       const digitsMatch = cleanDigits.length >= 4 && uDigits === cleanDigits;
+      if (role === 'student') {
+        return idStrMatch || digitsMatch;
+      }
+      const emailMatch = u.email.trim().toLowerCase() === cleanId;
       return emailMatch || idStrMatch || digitsMatch;
     });
 
     if (!matched) {
-      const roleLabel = role === 'teacher' ? 'Guru' : 'Siswa';
+      if (role === 'student') {
+        return {
+          success: false,
+          message:
+            'NIS tersebut tidak ditemukan. Pastikan penulisan NIS sudah benar sesuai presensi, atau daftar melalui tab Buat Akun Siswa.',
+        };
+      }
       return {
         success: false,
-        message: `Akun ${roleLabel} dengan email atau nomor induk tersebut tidak ditemukan. Silakan periksa peran atau buat akun baru.`,
+        message:
+          'Akun Guru dengan email atau NIP tersebut tidak ditemukan. Silakan periksa kembali atau registrasi akun baru.',
       };
     }
 
-    const expectedPass = (matched.password || '123').trim();
+    const expectedPass = (
+      matched.password || (role === 'student' ? '0000' : '123')
+    ).trim();
+
     if (expectedPass !== cleanPass) {
       return {
         success: false,
-        message: 'Kata sandi yang Anda masukkan belum sesuai. Silakan coba kembali.',
+        message:
+          role === 'student'
+            ? matched.hasChangedPassword
+              ? 'Kata sandi belum sesuai. Masukkan kata sandi baru yang telah Anda ubah sebelumnya.'
+              : 'Kata sandi belum sesuai. Untuk masuk pertama kali, gunakan kata sandi awal: 0000.'
+            : 'Kata sandi yang Anda masukkan belum sesuai. Silakan coba kembali.',
       };
     }
 
-    setCurrentUserState(matched);
+    // Optional class code enrollment right during login ("pas masuk tinggal tulis nis dan memasukkan kode")
+    const rawCodes = (classCodesToJoin || [])
+      .flatMap((c) => c.split(/[,;\s]+/))
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    let updatedUser: User = { ...matched };
+
+    if (rawCodes.length > 0) {
+      const notFoundCodes = rawCodes.filter(
+        (code) => !allClasses.some((c) => c.code.toUpperCase() === code)
+      );
+      if (notFoundCodes.length > 0) {
+        return {
+          success: false,
+          message: `Kode kelas "${notFoundCodes.join(', ')}" tidak ditemukan. Pastikan kode kelas sesuai dengan yang dibagikan guru Anda (atau kosongkan jika sudah tergabung).`,
+        };
+      }
+
+      const nextJoinedSet = new Set(matched.joinedClassIds || []);
+      let firstMatchedClassId = '';
+      const updatedAllClasses = allClasses.map((cls) => {
+        if (!rawCodes.includes(cls.code.toUpperCase())) return cls;
+        if (!firstMatchedClassId) firstMatchedClassId = cls.id;
+        nextJoinedSet.add(cls.id);
+        const existingMembers = new Set(cls.memberIds || []);
+        const alreadyMember = existingMembers.has(matched.id);
+        existingMembers.add(matched.id);
+        const nextCls: ClassRoom = {
+          ...cls,
+          memberIds: Array.from(existingMembers),
+          studentCount:
+            role === 'student' && !alreadyMember ? cls.studentCount + 1 : cls.studentCount,
+        };
+        safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(nextCls)));
+        return nextCls;
+      });
+
+      setAllClasses(updatedAllClasses);
+      const nextJoinedArray = Array.from(nextJoinedSet);
+      updatedUser = {
+        ...matched,
+        joinedClassIds: nextJoinedArray,
+      };
+      if (firstMatchedClassId) {
+        setActiveClassId(firstMatchedClassId);
+      }
+
+      safeSupabaseCall(
+        supabase.from('profiles').upsert({
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          avatar_url: updatedUser.avatarUrl,
+          identifier_number: updatedUser.identifierNumber,
+          class_name: nextJoinedArray.join(','),
+          school_name: updatedUser.schoolName,
+        })
+      );
+    }
+
+    setCurrentUserState(updatedUser);
+    setRegisteredUsers((prev) =>
+      prev.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+    );
     setIsAuthenticated(true);
     setActiveTab('jadwal');
+    clearLoginUrlParams();
     return {
       success: true,
-      message: `Selamat datang kembali, ${matched.name}!`,
+      message: `Selamat datang, ${updatedUser.name}!`,
+    };
+  };
+
+  const updateUserPassword = (
+    currentPassword: string,
+    newPassword: string
+  ): { success: boolean; message: string } => {
+    const cleanCurr = currentPassword.trim();
+    const cleanNew = newPassword.trim();
+    const expected = (
+      currentUser.password || (currentUser.role === 'student' ? '0000' : '123')
+    ).trim();
+
+    if (!cleanCurr || !cleanNew) {
+      return {
+        success: false,
+        message: 'Mohon isi kata sandi saat ini dan kata sandi baru Anda.',
+      };
+    }
+
+    if (cleanCurr !== expected) {
+      return {
+        success: false,
+        message: 'Kata sandi saat ini tidak sesuai.',
+      };
+    }
+
+    if (cleanNew.length < 4) {
+      return {
+        success: false,
+        message: 'Kata sandi baru minimal terdiri dari 4 karakter atau angka.',
+      };
+    }
+
+    const updated: User = {
+      ...currentUser,
+      password: cleanNew,
+      hasChangedPassword: true,
+    };
+
+    setCurrentUserState(updated);
+    setRegisteredUsers((prev) =>
+      prev.map((u) => (u.id === updated.id ? updated : u))
+    );
+
+    return {
+      success: true,
+      message: 'Kata sandi berhasil diperbarui! Gunakan kata sandi baru ini saat masuk berikutnya.',
     };
   };
 
@@ -849,6 +1165,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUserState(target);
       setIsAuthenticated(true);
       setActiveTab('jadwal');
+      clearLoginUrlParams();
     }
   };
 
@@ -861,15 +1178,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notFoundCodes?: string[];
   } => {
     const cleanName = input.name.trim();
-    const cleanEmail = input.email.trim().toLowerCase();
-    const cleanPass = input.password.trim();
+    const cleanPass = (input.password || '').trim() || (input.role === 'student' ? '0000' : '');
     const cleanIdNum = input.identifierNumber.trim();
+    const cleanDigits = cleanIdNum.replace(/[^0-9]/g, '');
+    const cleanEmail = (input.email || '').trim().toLowerCase();
 
-    if (!cleanName || !cleanEmail || !cleanPass) {
-      return {
-        success: false,
-        message: 'Nama lengkap, email, dan kata sandi wajib diisi.',
-      };
+    if (input.role === 'student') {
+      if (!cleanDigits || cleanDigits.length < 4) {
+        return {
+          success: false,
+          message: 'Nomor Induk Siswa (NIS) wajib diisi dengan benar.',
+        };
+      }
+      if (!cleanName) {
+        return {
+          success: false,
+          message: 'Nama lengkap siswa wajib diisi.',
+        };
+      }
+      const existingNisUser = registeredUsers.find((u) => {
+        if (u.role !== 'student') return false;
+        const uDigits = u.identifierNumber.replace(/[^0-9]/g, '');
+        return uDigits === cleanDigits;
+      });
+      if (existingNisUser) {
+        return {
+          success: false,
+          message: `NIS ${cleanDigits} sudah terdaftar atas nama ${existingNisUser.name}. Silakan langsung masuk di tab Masuk Siswa menggunakan NIS tersebut dan kata sandi awal 0000.`,
+        };
+      }
+    } else {
+      if (!cleanName || !cleanEmail || !cleanPass) {
+        return {
+          success: false,
+          message: 'Nama lengkap, email, dan kata sandi pendidik wajib diisi.',
+        };
+      }
+      const duplicateEmail = registeredUsers.find(
+        (u) => u.role === 'teacher' && u.email.trim().toLowerCase() === cleanEmail
+      );
+      if (duplicateEmail) {
+        return {
+          success: false,
+          message: `Email ${cleanEmail} sudah terdaftar sebagai Guru. Silakan masuk pada tab Masuk Portal Guru.`,
+        };
+      }
     }
 
     if (cleanPass.length < 3) {
@@ -879,30 +1232,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const duplicate = registeredUsers.find(
-      (u) => u.email.trim().toLowerCase() === cleanEmail && u.role === input.role
-    );
-    if (duplicate) {
-      return {
-        success: false,
-        message: `Email ${cleanEmail} sudah terdaftar sebagai ${
-          input.role === 'teacher' ? 'Guru' : 'Siswa'
-        }. Silakan masuk pada tab Masuk Akun.`,
-      };
-    }
-
     const newUserId = `user-${Date.now()}`;
     const formattedIdNumber = cleanIdNum
       ? input.role === 'teacher'
         ? cleanIdNum.toUpperCase().startsWith('NIP')
           ? cleanIdNum
           : `NIP. ${cleanIdNum}`
-        : cleanIdNum.toUpperCase().startsWith('NISN')
+        : cleanIdNum.toUpperCase().startsWith('NIS')
         ? cleanIdNum
-        : `NISN. ${cleanIdNum}`
+        : `NIS. ${cleanDigits || cleanIdNum}`
       : input.role === 'teacher'
       ? `NIP. 1990${Math.floor(1000 + Math.random() * 9000)}`
-      : `NISN. 009${Math.floor(100000 + Math.random() * 900000)}`;
+      : `NIS. 012${Math.floor(1000000 + Math.random() * 9000000)}`;
+
+    const generatedOrCleanEmail =
+      cleanEmail || `${cleanDigits || Date.now()}@siswa.classywork.local`;
 
     const joinedIds = new Set<string>();
     const notFoundCodes: string[] = [];
@@ -959,7 +1303,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const existingMembers = new Set(target.memberIds || []);
           const alreadyMember = existingMembers.has(newUserId);
           existingMembers.add(newUserId);
-          updatedExistingClasses[idx] = {
+          const nextCls: ClassRoom = {
             ...target,
             memberIds: Array.from(existingMembers),
             studentCount:
@@ -967,6 +1311,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ? target.studentCount + 1
                 : target.studentCount,
           };
+          updatedExistingClasses[idx] = nextCls;
+          safeSupabaseCall(supabase.from('classes').upsert(mapClassToDb(nextCls)));
         } else {
           notFoundCodes.push(code);
         }
@@ -987,15 +1333,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const newUser: User = {
       id: newUserId,
-      name: cleanName,
-      email: cleanEmail,
+      name: input.role === 'student' ? cleanName.toUpperCase() : cleanName,
+      email: generatedOrCleanEmail,
       password: cleanPass,
+      hasChangedPassword: input.role === 'student' ? cleanPass !== '0000' : true,
       role: input.role,
       avatarUrl: input.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG,
       identifierNumber: formattedIdNumber,
       className: firstClassName,
       joinedClassIds: joinedArray,
-      schoolName: input.schoolName?.trim() || 'MTs',
+      schoolName: input.schoolName?.trim() || 'MTs / SMP',
       phone: input.phone?.trim() || undefined,
       isPhoneVerified: input.role === 'teacher' && Boolean(input.phone?.trim()),
       attendanceNumber:
@@ -1009,6 +1356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setIsAuthenticated(true);
     setActiveTab('jadwal');
+    clearLoginUrlParams();
 
     safeSupabaseCall(
       supabase.from('profiles').upsert({
@@ -1018,7 +1366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: newUser.role,
         avatar_url: newUser.avatarUrl,
         identifier_number: newUser.identifierNumber,
-        class_name: newUser.className || '',
+        class_name: joinedArray.join(',') || newUser.className || '',
         school_name: newUser.schoolName,
       })
     );
@@ -1032,9 +1380,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = () => {
+    const activeRole = currentUser.role;
     setIsAuthenticated(false);
     setIsAllClassesViewState(false);
     localStorage.setItem('classsync_auth_active', 'false');
+    if (typeof window !== 'undefined') {
+      try {
+        const targetUrl = activeRole === 'teacher' ? '/?portal=guru' : '/?portal=siswa';
+        window.history.replaceState({}, '', targetUrl);
+        window.dispatchEvent(new Event('popstate'));
+      } catch {
+        // Ignore history errors
+      }
+    }
   };
 
   const switchRole = () => {
@@ -1052,6 +1410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (target) {
       setCurrentUserState(target);
       setIsAuthenticated(true);
+      clearLoginUrlParams();
     }
   };
 
@@ -1207,12 +1566,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (newlyJoined.length > 0) {
       setAllClasses(nextAllClasses);
       const addedIds = newlyJoined.map((c) => c.id);
+      const mergedJoinedIds = Array.from(new Set([...(currentUser.joinedClassIds || []), ...addedIds]));
       setCurrentUserState((prev) => ({
         ...prev,
-        joinedClassIds: Array.from(new Set([...(prev.joinedClassIds || []), ...addedIds])),
+        joinedClassIds: mergedJoinedIds,
       }));
       setActiveClassId(newlyJoined[0].id);
       setIsAllClassesViewState(false);
+
+      safeSupabaseCall(
+        supabase.from('profiles').upsert({
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+          avatar_url: currentUser.avatarUrl,
+          identifier_number: currentUser.identifierNumber,
+          class_name: mergedJoinedIds.join(','),
+          school_name: currentUser.schoolName,
+        })
+      );
 
       const joinedNames = newlyJoined.map((c) => c.name).join(', ');
       const notif: AppNotification = {
@@ -1765,6 +2138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         registeredUsers,
         setCurrentUser: setCurrentUserState,
         loginWithCredentials,
+        updateUserPassword,
         quickLoginAccount,
         registerAccount,
         logout,

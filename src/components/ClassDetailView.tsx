@@ -19,6 +19,12 @@ import {
   ShieldCheck,
   LogOut,
   Layers,
+  Link2,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ClassDetailViewProps {
@@ -45,13 +51,42 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     userBadges,
     activeLiveClass,
     setActiveTab,
+    updateUserPassword,
   } = useApp();
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLoginUrl, setCopiedLoginUrl] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const isTeacher = currentUser.role === 'teacher';
+  const isDefaultStudentPass = !isTeacher && !currentUser.hasChangedPassword;
+  const [showPasswordEditor, setShowPasswordEditor] = useState(false);
+  const [oldPasswordInput, setOldPasswordInput] = useState(isDefaultStudentPass ? '0000' : '');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [showPassChars, setShowPassChars] = useState(false);
+  const [passNotice, setPassNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
+
+  React.useEffect(() => {
+    setOldPasswordInput(!isTeacher && !currentUser.hasChangedPassword ? '0000' : '');
+    setNewPasswordInput('');
+    setPassNotice(null);
+  }, [currentUser.id, currentUser.hasChangedPassword, isTeacher]);
+
+  const handleSaveNewPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassNotice(null);
+    const res = updateUserPassword(oldPasswordInput, newPasswordInput);
+    if (res.success) {
+      setPassNotice({ type: 'success', text: res.message });
+      setOldPasswordInput('');
+      setNewPasswordInput('');
+    } else {
+      setPassNotice({ type: 'error', text: res.message });
+    }
+  };
 
   const handleCopy = () => {
     if (!activeClass) return;
@@ -60,11 +95,24 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const handleCopyLoginLink = () => {
+    const loginUrl = `${window.location.origin}/?portal=siswa`;
+    navigator.clipboard.writeText(loginUrl);
+    setCopiedLoginUrl(true);
+    setTimeout(() => setCopiedLoginUrl(false), 2000);
+  };
+
   const classStudents = React.useMemo(() => {
     if (!activeClass) return [];
     const studentMap = new Map<
       string,
-      { id: string; name: string; avatarUrl: string; identifierNumber?: string }
+      {
+        id: string;
+        name: string;
+        avatarUrl: string;
+        identifierNumber?: string;
+        attendanceNumber?: number;
+      }
     >();
 
     // Include all registered student accounts enrolled in this class
@@ -81,6 +129,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
           name: stu.name,
           avatarUrl: stu.avatarUrl || AVATAR_STUDENT_SVG,
           identifierNumber: stu.identifierNumber,
+          attendanceNumber: stu.attendanceNumber,
         });
       });
 
@@ -93,6 +142,7 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
         name: currentUser.name,
         avatarUrl: currentUser.avatarUrl || AVATAR_STUDENT_SVG,
         identifierNumber: currentUser.identifierNumber,
+        attendanceNumber: currentUser.attendanceNumber,
       });
     }
 
@@ -111,11 +161,17 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 ? sub.studentAvatar
                 : AVATAR_STUDENT_SVG,
             identifierNumber: 'Siswa Kelas',
+            attendanceNumber: sub.attendanceNumber,
           });
         }
       });
 
-    return Array.from(studentMap.values());
+    return Array.from(studentMap.values()).sort((a, b) => {
+      const numA = a.attendanceNumber ?? 999;
+      const numB = b.attendanceNumber ?? 999;
+      if (numA !== numB) return numA - numB;
+      return a.name.localeCompare(b.name);
+    });
   }, [activeClass, currentUser, registeredUsers, assignments, submissions]);
 
   return (
@@ -146,9 +202,15 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
               </div>
 
               <p className="text-xs text-white/75 font-medium mt-0.5 flex items-center gap-2 flex-wrap tabular-nums">
-                <span>{currentUser.identifierNumber}</span>
-                <span>·</span>
-                <span>{currentUser.schoolName}</span>
+                {!isTeacher && currentUser.attendanceNumber && (
+                  <>
+                    <span className="text-[#FCEADE] font-bold">
+                      Absen #{currentUser.attendanceNumber}
+                    </span>
+                    <span>·</span>
+                  </>
+                )}
+                <span className="font-mono">{currentUser.identifierNumber}</span>
                 <span>·</span>
                 <span className="text-[#FCEADE] font-bold">{classes.length} Kelas Aktif</span>
               </p>
@@ -166,16 +228,137 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={logout}
-            className="px-3.5 py-2 rounded-full bg-white/12 hover:bg-rose-500/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-            title="Keluar ke Halaman Login"
-          >
-            <LogOut className="w-3.5 h-3.5 text-[#F4A950]" />
-            <span>Keluar Akun</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasswordEditor((prev) => !prev);
+                setPassNotice(null);
+              }}
+              className="min-h-[38px] px-3.5 py-2 rounded-full bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              title="Ubah kata sandi akun Anda"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{showPasswordEditor ? 'Tutup Sandi' : 'Ubah Sandi'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={logout}
+              className="min-h-[38px] px-3.5 py-2 rounded-full bg-white/12 hover:bg-rose-500/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+              title="Keluar ke Halaman Login"
+            >
+              <LogOut className="w-3.5 h-3.5 text-[#F4A950]" />
+              <span>Keluar Akun</span>
+            </button>
+          </div>
         </div>
+
+        {/* Helpful reminder if student is still using initial 0000 password */}
+        {isDefaultStudentPass && !showPasswordEditor && (
+          <div className="relative z-10 mt-3.5 pt-3 border-t border-white/12 flex items-center justify-between gap-2 flex-wrap text-xs text-[#FCEADE]/90">
+            <span>
+              Kata sandi Anda saat ini masih sandi awal (<strong className="font-mono">0000</strong>). Anda dapat menggantinya kapan saja.
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowPasswordEditor(true)}
+              className="text-[#F4A950] hover:underline font-extrabold cursor-pointer whitespace-nowrap"
+            >
+              Edit Kata Sandi →
+            </button>
+          </div>
+        )}
+
+        {/* Inline Collapsible Password Editor */}
+        {showPasswordEditor && (
+          <form
+            onSubmit={handleSaveNewPassword}
+            className="relative z-10 mt-4 pt-4 border-t border-white/15 space-y-3"
+          >
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs font-extrabold text-[#FCEADE]">
+                Edit Kata Sandi {isTeacher ? 'Guru' : `Siswa (${currentUser.identifierNumber})`}
+              </span>
+              {isDefaultStudentPass && (
+                <span className="text-[11px] font-mono text-[#F4A950]">
+                  Sandi awal saat ini: 0000
+                </span>
+              )}
+            </div>
+
+            {passNotice && (
+              <div
+                className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
+                  passNotice.type === 'success'
+                    ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-200'
+                    : 'bg-rose-950/60 border-rose-500/50 text-rose-200'
+                }`}
+              >
+                {passNotice.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                )}
+                <span className="font-medium">{passNotice.text}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+              <div className="sm:col-span-4">
+                <label className="text-[11px] font-semibold text-white/80 block mb-1">
+                  Kata Sandi Lama
+                </label>
+                <input
+                  type={showPassChars ? 'text' : 'password'}
+                  required
+                  value={oldPasswordInput}
+                  onChange={(e) => setOldPasswordInput(e.target.value)}
+                  placeholder={isDefaultStudentPass ? '0000' : 'Sandi saat ini'}
+                  className="w-full min-h-[40px] px-3 py-2 text-xs font-mono tabular-nums rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/45 focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                />
+              </div>
+
+              <div className="sm:col-span-5">
+                <label className="text-[11px] font-semibold text-white/80 block mb-1">
+                  Kata Sandi Baru Pilihan Anda
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassChars ? 'text' : 'password'}
+                    required
+                    minLength={3}
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    placeholder="Ketik sandi baru (min. 3 karakter)"
+                    className="w-full min-h-[40px] pl-3 pr-9 py-2 text-xs font-mono tabular-nums rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/45 focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassChars((prev) => !prev)}
+                    className="absolute right-2 top-1 min-h-[32px] min-w-[28px] flex items-center justify-center text-white/70 hover:text-white cursor-pointer"
+                    title={showPassChars ? 'Sembunyikan' : 'Tampilkan'}
+                  >
+                    {showPassChars ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <button
+                  type="submit"
+                  className="w-full min-h-[40px] px-4 py-2 rounded-xl bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] text-xs font-extrabold transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  Simpan Sandi
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Multi-Class Section: Daftar Kelas Tersedia */}
@@ -502,10 +685,28 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                 </p>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={handleCopyLoginLink}
+                  className="px-3.5 py-1.5 bg-[#163E4B] hover:bg-[#10303B] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
+                  title="Salin link langsung menuju Halaman Login Siswa"
+                >
+                  {copiedLoginUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-[#F4A950]" />
+                      <span className="text-[#FCEADE] text-xs">Link Siswa Tersalin</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="w-3.5 h-3.5 text-[#F4A950]" />
+                      <span>Link Login Siswa</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   onClick={handleCopy}
-                  className="px-3.5 py-1.5 bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white rounded-full text-xs font-bold hover:bg-[#F7F7F5] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  className="px-3.5 py-1.5 bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white rounded-full text-xs font-bold hover:bg-[#F7F7F5] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs whitespace-nowrap"
                 >
                   {copiedCode ? (
                     <>
@@ -515,24 +716,26 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" />
-                      <span>Salin</span>
+                      <span>Salin Kode</span>
                     </>
                   )}
                 </button>
 
                 <button
                   onClick={() => {
+                    const loginUrl = `${window.location.origin}/?portal=siswa`;
                     if (navigator.share) {
                       navigator.share({
-                        title: `Gabung Kelas ${activeClass.name}`,
-                        text: `Kode kelas ${activeClass.name}: ${activeClass.code}`,
+                        title: `Login Siswa ClassyWork — Kelas ${activeClass.name}`,
+                        text: `Masuk ke Kelas ${activeClass.name} (Kode: ${activeClass.code}) melalui Halaman Login Siswa: ${loginUrl}`,
+                        url: loginUrl,
                       });
                     } else {
-                      handleCopy();
+                      handleCopyLoginLink();
                     }
                   }}
                   className="p-2 bg-white dark:bg-[#13313C] text-[#163E4B] dark:text-white rounded-full hover:bg-[#F7F7F5] transition-colors cursor-pointer shadow-2xs"
-                  title="Bagikan"
+                  title="Bagikan Link Login Siswa & Kode Kelas"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -640,12 +843,13 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({ onOpenClassMod
                           )}
                         </p>
                         <p className="text-[11px] text-[#7B8D93] font-mono tabular-nums">
+                          {student.attendanceNumber ? `No. Absen ${student.attendanceNumber} · ` : ''}
                           {student.identifierNumber}
                         </p>
                       </div>
                     </div>
 
-                    <span className="text-[11px] font-semibold text-[#6E828A] dark:text-[#9CB7C0]">
+                    <span className="text-[11px] font-semibold text-[#6E828A] dark:text-[#9CB7C0] whitespace-nowrap">
                       Siswa Aktif
                     </span>
                   </div>

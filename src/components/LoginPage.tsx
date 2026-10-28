@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useApp, getPortalRoleFromUrl } from '../context/AppContext';
 import { UserRole } from '../types';
-import { AVATAR_STUDENT_SVG, AVATAR_TEACHER_SVG } from '../data/mockData';
 import {
   GraduationCap,
   ShieldCheck,
@@ -21,65 +20,102 @@ import {
   Moon,
   Sun,
   AlertCircle,
-  Sparkles,
+  Link2,
+  BookOpen,
+  Hash,
 } from 'lucide-react';
 
-export const LoginPage: React.FC = () => {
-  const {
-    loginWithCredentials,
-    quickLoginAccount,
-    registerAccount,
-    registeredUsers,
-    allClasses,
-    witaTimeInfo,
-    isDarkMode,
-    setIsDarkMode,
-  } = useApp();
+const getInitialModeFromUrl = (): 'login' | 'register' => {
+  if (typeof window === 'undefined') return 'login';
+  const path = window.location.pathname.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.toLowerCase();
+  if (
+    path === '/register' ||
+    path === '/daftar' ||
+    path === '/daftar-siswa' ||
+    path === '/daftar-guru' ||
+    params.get('page') === 'register' ||
+    params.get('page') === 'daftar' ||
+    params.get('mode') === 'register' ||
+    params.get('mode') === 'daftar' ||
+    hash === '#register' ||
+    hash === '#daftar'
+  ) {
+    return 'register';
+  }
+  return 'login';
+};
 
-  // Auth mode: 'login' | 'register'
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [role, setRole] = useState<UserRole>('student');
+const getLoginCodesFromUrl = (): string[] => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const codeParam = params.get('code');
+    if (codeParam) {
+      const codes = codeParam
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+      if (codes.length > 0) return codes;
+    }
+  }
+  return [''];
+};
 
-  // Login form state
-  const [loginIdentifier, setLoginIdentifier] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+const getRegisterCodesFromUrl = (): string[] => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const codeParam = params.get('code');
+    if (codeParam) {
+      const codes = codeParam
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+      return codes.length >= 2 ? codes : [...codes, ''];
+    }
+  }
+  return ['', ''];
+};
+
+/* ============================================================================
+ * 1. PORTAL LOGIN KHUSUS SISWA (/?portal=siswa)
+ *    - Masuk & Pendaftaran Siswa cukup menggunakan NIS (tanpa email)
+ *    - Kata sandi awal default "0000" saat pertama kali masuk (dapat diedit)
+ *    - Langsung isi NIS + Kode Kelas pada saat masuk
+ * ============================================================================ */
+const StudentLoginPortal: React.FC = () => {
+  const { loginWithCredentials, registerAccount, witaTimeInfo, isDarkMode, setIsDarkMode } =
+    useApp();
+
+  const [mode, setMode] = useState<'login' | 'register'>(getInitialModeFromUrl);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Login form state (NIS + Kata Sandi default "0000" editable + Kode Kelas)
+  const [nisInput, setNisInput] = useState('');
+  const [loginPassword, setLoginPassword] = useState('0000');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginClassCodes, setLoginClassCodes] = useState<string[]>(getLoginCodesFromUrl);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Register form state
+  // Register form state (Hanya menggunakan NIS, tanpa Email, sandi default "0000" editable)
+  const [regNis, setRegNis] = useState('');
   const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regIdNumber, setRegIdNumber] = useState('');
-  const [regSchoolName, setRegSchoolName] = useState('MTs');
-  const [regAttendanceNumber, setRegAttendanceNumber] = useState<number>(1);
-  const [regPhone, setRegPhone] = useState('');
+  const [regAttendanceNumber, setRegAttendanceNumber] = useState<number>(33);
+  const [regPassword, setRegPassword] = useState('0000');
+  const [studentClassCodes, setStudentClassCodes] = useState<string[]>(getRegisterCodesFromUrl);
 
-  // Multi-class inputs during registration (supports 2 or more classes right away!)
-  const [studentClassCodes, setStudentClassCodes] = useState<string[]>(['', '']);
-  const [teacherInitialClasses, setTeacherInitialClasses] = useState<
-    { name: string; gradeLevel: string }[]
-  >([
-    { name: '', gradeLevel: 'Kelas 7' },
-    { name: '', gradeLevel: 'Kelas 8' },
-  ]);
-
-  const roleFilteredAccounts = registeredUsers.filter((u) => u.role === role);
-
-  const handleSwitchMode = (nextMode: 'login' | 'register') => {
-    setMode(nextMode);
-    setErrorMessage(null);
-  };
-
-  const handleSwitchRole = (nextRole: UserRole) => {
-    setRole(nextRole);
-    setErrorMessage(null);
+  const handleCopyStudentLink = () => {
+    const url = `${window.location.origin}/?portal=siswa`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    const res = loginWithCredentials(loginIdentifier, loginPassword, role);
+    const validCodes = loginClassCodes.map((c) => c.trim()).filter(Boolean);
+    const res = loginWithCredentials(nisInput, loginPassword, 'student', validCodes);
     if (!res.success) {
       setErrorMessage(res.message);
     }
@@ -88,347 +124,187 @@ export const LoginPage: React.FC = () => {
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-
     const validCodes = studentClassCodes.map((c) => c.trim()).filter(Boolean);
-    const validTeacherClasses = teacherInitialClasses.filter((c) => c.name.trim().length > 0);
-
     const res = registerAccount({
       name: regName,
-      email: regEmail,
       password: regPassword,
-      role,
-      identifierNumber: regIdNumber,
-      schoolName: regSchoolName,
-      attendanceNumber: role === 'student' ? regAttendanceNumber : undefined,
-      phone: role === 'teacher' ? regPhone : undefined,
+      role: 'student',
+      identifierNumber: regNis,
+      attendanceNumber: regAttendanceNumber,
       classCodesToJoin: validCodes,
-      initialClassesToCreate: role === 'teacher' ? validTeacherClasses : undefined,
     });
-
     if (!res.success) {
       setErrorMessage(res.message);
     }
   };
 
-  const toggleQuickCodeSelect = (code: string) => {
-    const upper = code.toUpperCase();
-    setStudentClassCodes((prev) => {
-      const exists = prev.some((c) => c.trim().toUpperCase() === upper);
-      if (exists) {
-        const filtered = prev.filter((c) => c.trim().toUpperCase() !== upper);
-        return filtered.length < 2 ? [...filtered, ...Array(2 - filtered.length).fill('')] : filtered;
-      }
-      const emptyIdx = prev.findIndex((c) => !c.trim());
-      if (emptyIdx >= 0) {
-        const copy = [...prev];
-        copy[emptyIdx] = upper;
-        return copy;
-      }
-      return [...prev, upper];
-    });
-  };
-
   return (
-    <div className="min-h-screen w-full bg-[#FAF9F5] dark:bg-[#0B1E25] text-[#163E4B] dark:text-[#F2F6F7] grid grid-cols-1 lg:grid-cols-12 items-stretch transition-colors">
-      {/* LEFT PANEL: Architectural Deep Petrol Portal Showcase (Distinct from In-App Dashboard) */}
-      <aside className="lg:col-span-7 bg-[#123541] dark:bg-[#091A20] text-white relative overflow-hidden flex flex-col justify-between p-6 sm:p-10 lg:p-14 xl:p-16 border-b lg:border-b-0 lg:border-r border-white/10">
-        {/* Custom Architectural Geometric SVG Artwork (No cheesy AI slop, clean academic precision) */}
-        <svg
-          className="pointer-events-none absolute right-0 top-0 w-[440px] h-[440px] opacity-25"
-          viewBox="0 0 440 440"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle cx="360" cy="80" r="140" stroke="#FCEADE" strokeWidth="1.5" />
-          <circle cx="360" cy="80" r="210" stroke="#F4A950" strokeWidth="1.5" strokeDasharray="6 8" />
-          <circle cx="360" cy="80" r="285" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="1" />
-          <line x1="120" y1="80" x2="440" y2="80" stroke="#F4A950" strokeOpacity="0.4" strokeWidth="1" />
-          <line x1="360" y1="0" x2="360" y2="320" stroke="#FCEADE" strokeOpacity="0.3" strokeWidth="1" />
-        </svg>
+    <div className="min-h-screen w-full bg-[#FAF7F2] dark:bg-[#0B1D24] text-[#163E4B] dark:text-[#F2F6F7] flex flex-col justify-between px-4 py-6 sm:px-6 sm:py-10 relative overflow-x-hidden transition-colors">
+      {/* Subtle Warm Sunrise Ambient Glow */}
+      <div className="pointer-events-none fixed -top-28 left-1/2 -translate-x-1/2 w-[520px] h-[260px] rounded-full bg-[#FCEADE]/80 dark:bg-[#F4A950]/10 blur-3xl" />
 
-        <div className="pointer-events-none absolute -left-24 -bottom-24 w-80 h-80 rounded-full bg-[#F4A950]/10 blur-3xl" />
-
-        {/* Top Institutional Bar */}
-        <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#F4A950] text-[#123541] flex items-center justify-center shadow-lg">
-              <GraduationCap className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="text-xl font-extrabold tracking-tight text-white block leading-none">
-                Classy<span className="text-[#F4A950]">Work</span>
-              </span>
-              <span className="text-xs text-[#B6CFD7] font-medium mt-1 block">
-                Portal Akademik Terpadu Guru & Siswa
-              </span>
-            </div>
+      {/* Top Compact Bar */}
+      <header className="relative z-10 w-full max-w-[500px] mx-auto flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-2xl bg-[#F4A950] text-[#163E4B] flex items-center justify-center shrink-0">
+            <GraduationCap className="w-5 h-5" />
           </div>
-
-          {/* Live WITA Clock Strip */}
-          <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/[0.07] border border-white/10 text-xs">
-            <Clock className="w-4 h-4 text-[#F4A950] shrink-0" />
-            <div className="leading-tight">
-              <span className="font-mono tabular-nums font-bold text-white block">
-                {witaTimeInfo.formattedTimeWithSeconds} WITA
-              </span>
-              <span className="text-[11px] text-[#B6CFD7] block">
-                {witaTimeInfo.formattedDate}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Center Hero Editorial Copy & Architectural Preview */}
-        <div className="relative z-10 my-8 lg:my-12 max-w-xl space-y-6">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-[#F4A950] tracking-wide">
-              Sistem Manajemen Jadwal, Multi-Kelas & Penilaian Tugas
-            </p>
-            <h1 className="text-2xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-white leading-[1.15] [text-wrap:balance]">
-              Kelola Kegiatan Belajar Mengajar Lebih Terstruktur dalam Satu Akses.
-            </h1>
-            <p className="text-sm sm:text-base text-[#C4DAE1] leading-relaxed">
-              Masuk sebagai <strong className="text-white font-semibold">Guru Pengampu</strong> atau{' '}
-              <strong className="text-white font-semibold">Siswa</strong> untuk mengakses jadwal KBM
-              Senin–Sabtu secara real-time, tergabung di dua kelas atau lebih sekaligus, serta
-              mengelola pengumpulan tugas sesuai urutan absen.
-            </p>
-          </div>
-
-          {/* Clean Numbered Editorial Pillars (Hidden on very small screens to keep Login form quick to reach, shown sm+) */}
-          <div className="hidden sm:grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/12">
-            <div className="space-y-1">
-              <span className="font-mono text-xs font-bold text-[#F4A950] tabular-nums">01.</span>
-              <h2 className="text-sm font-bold text-white">Multi-Kelas Fleksibel</h2>
-              <p className="text-xs text-[#B2CCD4] leading-relaxed">
-                Siswa & guru dapat membuat atau bergabung ke 2 kelas atau lebih sekaligus dalam satu akun.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <span className="font-mono text-xs font-bold text-[#F4A950] tabular-nums">02.</span>
-              <h2 className="text-sm font-bold text-white">Sinkron Waktu WITA</h2>
-              <p className="text-xs text-[#B2CCD4] leading-relaxed">
-                Indikator progres mata pelajaran berlangsung otomatis mengikuti jam nyata WITA (UTC+8).
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <span className="font-mono text-xs font-bold text-[#F4A950] tabular-nums">03.</span>
-              <h2 className="text-sm font-bold text-white">Urut Absen & Skor XP</h2>
-              <p className="text-xs text-[#B2CCD4] leading-relaxed">
-                Rekap pengumpulan tugas terurut rapi berdasarkan nomor absen beserta nilai & poin XP.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Portal Summary Metrics (Clean unboxed typography with separators) */}
-        <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between gap-4 flex-wrap text-xs text-[#B6CFD7]">
-          <div className="flex items-center gap-2.5 flex-wrap tabular-nums">
-            <span>
-              <strong className="text-white font-bold">{allClasses.length}</strong> Kelas Terdaftar
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>
-              <strong className="text-white font-bold">
-                {registeredUsers.filter((u) => u.role === 'teacher').length}
-              </strong>{' '}
-              Akun Guru
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>
-              <strong className="text-white font-bold">
-                {registeredUsers.filter((u) => u.role === 'student').length}
-              </strong>{' '}
-              Akun Siswa
-            </span>
-          </div>
-
-          <span className="text-[#FCEADE]/80 font-medium">Senin – Sabtu · Zona WITA</span>
-        </div>
-      </aside>
-
-      {/* RIGHT PANEL: Dedicated Login & Account Creation Studio */}
-      <section className="lg:col-span-5 flex flex-col justify-between p-5 sm:p-8 lg:p-10 xl:p-12 overflow-y-auto">
-        {/* Top Utility Row */}
-        <div className="flex items-center justify-between gap-2 mb-6">
-          <span className="text-xs font-semibold text-[#6E828A] dark:text-[#96B2BC]">
-            Autentikasi Akun Sekolah & Madrasah
+          <span className="text-base sm:text-lg font-extrabold tracking-tight text-[#163E4B] dark:text-white whitespace-nowrap">
+            Classy<span className="text-[#E59638]">Work</span>
           </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopyStudentLink}
+            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-[#E8DEC8] dark:border-[#1F4654] bg-white dark:bg-[#122D37] text-xs font-semibold text-[#163E4B] dark:text-[#E8F1F4] flex items-center gap-1.5 hover:border-[#F4A950] transition-colors cursor-pointer whitespace-nowrap"
+            title="Salin tautan khusus halaman login siswa"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tersalin</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="w-3.5 h-3.5 text-[#E59638]" />
+                <span>Link Siswa</span>
+              </>
+            )}
+          </button>
 
           <button
             type="button"
             onClick={() => setIsDarkMode((prev) => !prev)}
-            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-[#E4E8E9] dark:border-[#1E4654] bg-white dark:bg-[#132F3A] text-xs font-semibold text-[#163E4B] dark:text-[#E8F1F4] flex items-center gap-1.5 hover:border-[#F4A950] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="min-h-[40px] min-w-[40px] px-2.5 py-1.5 rounded-xl border border-[#E8DEC8] dark:border-[#1F4654] bg-white dark:bg-[#122D37] text-xs font-semibold text-[#163E4B] dark:text-[#E8F1F4] flex items-center justify-center hover:border-[#F4A950] transition-colors cursor-pointer"
             title="Ubah Tema Tampilan"
           >
             {isDarkMode ? (
-              <>
-                <Sun className="w-3.5 h-3.5 text-[#F4A950]" />
-                <span>Mode Terang</span>
-              </>
+              <Sun className="w-4 h-4 text-[#F4A950]" />
             ) : (
-              <>
-                <Moon className="w-3.5 h-3.5 text-[#163E4B]" />
-                <span>Mode Gelap</span>
-              </>
+              <Moon className="w-4 h-4 text-[#163E4B]" />
             )}
           </button>
         </div>
+      </header>
 
-        {/* Main Auth Container */}
-        <div className="w-full max-w-md mx-auto my-auto space-y-5">
-          {/* Segmented Mode Control: Masuk Akun vs Buat Akun Baru */}
-          <div className="grid grid-cols-2 p-1.5 rounded-2xl bg-[#EFEee9] dark:bg-[#112A34] border border-[#E3E4DE] dark:border-[#1E4654]">
-            <button
-              type="button"
-              onClick={() => handleSwitchMode('login')}
-              className={`min-h-[44px] px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-                mode === 'login'
-                  ? 'bg-[#163E4B] text-white shadow-sm'
-                  : 'text-[#5E747D] dark:text-[#9BBAC4] hover:text-[#163E4B] dark:hover:text-white'
-              }`}
+      {/* Centered Student Card */}
+      <main className="relative z-10 w-full max-w-[500px] mx-auto my-auto">
+        <div className="rounded-[28px] bg-white dark:bg-[#122D37] border border-[#EDE3D5] dark:border-[#1F4654] shadow-[0_14px_38px_rgba(22,62,75,0.07)] overflow-hidden">
+          {/* Warm Peach Student Header */}
+          <div className="bg-[#FCEADE] dark:bg-[#183B48] px-6 py-5 sm:px-7 sm:py-6 border-b border-[#F3D8C1] dark:border-[#245060] relative overflow-hidden">
+            <svg
+              className="pointer-events-none absolute -right-8 -top-8 w-36 h-36 opacity-35"
+              viewBox="0 0 160 160"
+              fill="none"
+              aria-hidden="true"
             >
-              <LogIn className="w-4 h-4 text-[#F4A950]" />
-              <span>Masuk Akun</span>
-            </button>
+              <circle cx="110" cy="50" r="52" stroke="#F4A950" strokeWidth="2" />
+              <circle
+                cx="110"
+                cy="50"
+                r="76"
+                stroke="#163E4B"
+                strokeOpacity="0.18"
+                strokeWidth="1.5"
+                strokeDasharray="5 6"
+              />
+            </svg>
 
-            <button
-              type="button"
-              onClick={() => handleSwitchMode('register')}
-              className={`min-h-[44px] px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-                mode === 'register'
-                  ? 'bg-[#163E4B] text-white shadow-sm'
-                  : 'text-[#5E747D] dark:text-[#9BBAC4] hover:text-[#163E4B] dark:hover:text-white'
-              }`}
-            >
-              <UserPlus className="w-4 h-4 text-[#F4A950]" />
-              <span>Buat Akun Baru</span>
-            </button>
-          </div>
+            <div className="relative z-10 flex items-center justify-between gap-2 text-xs text-[#7A562C] dark:text-[#F4A950] font-semibold mb-2">
+              <span>Portal Belajar Siswa</span>
+              <span className="font-mono tabular-nums flex items-center gap-1 text-[#163E4B] dark:text-[#FCEADE]">
+                <Clock className="w-3.5 h-3.5 text-[#E59638]" />
+                {witaTimeInfo.formattedTime} WITA
+              </span>
+            </div>
 
-          {/* Heading */}
-          <div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-[#163E4B] dark:text-white tracking-tight">
-              {mode === 'login' ? 'Selamat Datang Kembali' : 'Pendaftaran Akun Baru'}
-            </h2>
-            <p className="text-xs sm:text-sm text-[#6E828A] dark:text-[#96B2BC] mt-1">
+            <h1 className="relative z-10 text-xl sm:text-2xl font-extrabold tracking-tight text-[#163E4B] dark:text-white [text-wrap:balance]">
+              {mode === 'login' ? 'Masuk dengan NIS & Kode Kelas' : 'Daftar Siswa Baru (NIS)'}
+            </h1>
+            <p className="relative z-10 text-xs sm:text-sm text-[#4F6872] dark:text-[#BDD4DC] mt-1 leading-relaxed">
               {mode === 'login'
-                ? 'Pilih peran Anda (Siswa atau Guru) lalu masukkan kredensial akun untuk masuk ke portal kelas.'
-                : 'Buat akun Guru atau Siswa baru dan langsung gabung atau buat dua kelas maupun lebih.'}
+                ? 'Cukup ketik NIS Anda dan masukkan kode kelas dari guru. Sandi awal pertama kali masuk adalah 0000 dan dapat diubah setelah masuk.'
+                : 'Khusus siswa yang belum terdaftar di presensi: cukup daftar menggunakan NIS dan kata sandi pilihan Anda.'}
             </p>
           </div>
 
-          {/* Role Selector Cards (Guru vs Siswa) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block">
-              Pilih Peran Akses
-            </label>
-            <div className="grid grid-cols-2 gap-3">
+          {/* Form Body */}
+          <div className="p-6 sm:p-7 space-y-5">
+            {/* Segmented Mode Control */}
+            <div className="grid grid-cols-2 p-1 rounded-2xl bg-[#F7F3EC] dark:bg-[#0D222A] border border-[#ECE4D8] dark:border-[#1E4452]">
               <button
                 type="button"
-                onClick={() => handleSwitchRole('student')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
-                  role === 'student'
-                    ? 'bg-[#FCEADE] dark:bg-[#F4A950]/18 border-[#F4A950] ring-2 ring-[#F4A950]/25'
-                    : 'bg-white dark:bg-[#132F3A] border-[#E4E7E5] dark:border-[#214B59] hover:border-[#163E4B]/40'
+                onClick={() => {
+                  setMode('login');
+                  setErrorMessage(null);
+                }}
+                className={`min-h-[42px] px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  mode === 'login'
+                    ? 'bg-[#F4A950] text-[#163E4B]'
+                    : 'text-[#5E747D] dark:text-[#9BBAC4] hover:text-[#163E4B] dark:hover:text-white'
                 }`}
               >
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    role === 'student'
-                      ? 'bg-[#163E4B] text-[#F4A950]'
-                      : 'bg-[#F4F5F2] dark:bg-[#0E242D] text-[#6E828A]'
-                  }`}
-                >
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <span className="font-extrabold text-xs sm:text-sm text-[#163E4B] dark:text-white block">
-                    Siswa
-                  </span>
-                  <span className="text-[11px] text-[#5E747D] dark:text-[#9BBAC4] block leading-snug mt-0.5">
-                    Jadwal, multi-kelas & kumpul tugas
-                  </span>
-                </div>
+                <LogIn className="w-4 h-4" />
+                <span>Masuk Siswa</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleSwitchRole('teacher')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
-                  role === 'teacher'
-                    ? 'bg-[#163E4B] border-[#163E4B] text-white ring-2 ring-[#163E4B]/20 dark:ring-[#F4A950]/30'
-                    : 'bg-white dark:bg-[#132F3A] border-[#E4E7E5] dark:border-[#214B59] hover:border-[#163E4B]/40'
+                onClick={() => {
+                  setMode('register');
+                  setErrorMessage(null);
+                }}
+                className={`min-h-[42px] px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  mode === 'register'
+                    ? 'bg-[#F4A950] text-[#163E4B]'
+                    : 'text-[#5E747D] dark:text-[#9BBAC4] hover:text-[#163E4B] dark:hover:text-white'
                 }`}
               >
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    role === 'teacher'
-                      ? 'bg-[#F4A950] text-[#163E4B]'
-                      : 'bg-[#F4F5F2] dark:bg-[#0E242D] text-[#6E828A]'
-                  }`}
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <span
-                    className={`font-extrabold text-xs sm:text-sm block ${
-                      role === 'teacher' ? 'text-white' : 'text-[#163E4B] dark:text-white'
-                    }`}
-                  >
-                    Guru
-                  </span>
-                  <span
-                    className={`text-[11px] block leading-snug mt-0.5 ${
-                      role === 'teacher' ? 'text-[#C6DCE3]' : 'text-[#5E747D] dark:text-[#9BBAC4]'
-                    }`}
-                  >
-                    Kelola banyak kelas, jadwal & nilai
-                  </span>
-                </div>
+                <UserPlus className="w-4 h-4" />
+                <span>Daftar NIS Baru</span>
               </button>
             </div>
-          </div>
 
-          {/* Error Feedback Banner */}
-          {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{errorMessage}</span>
-            </div>
-          )}
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{errorMessage}</span>
+              </div>
+            )}
 
-          {/* ==================== FORM 1: MASUK AKUN (LOGIN) ==================== */}
-          {mode === 'login' ? (
-            <div className="space-y-5">
+            {mode === 'login' ? (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
+                {/* 1. NIS Siswa */}
                 <div>
                   <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1.5">
-                    {role === 'teacher' ? 'Email atau NIP Guru *' : 'Email atau NISN Siswa *'}
+                    Nomor Induk Siswa (NIS) *
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-[#8A9BA2] absolute left-3.5 top-3.5 pointer-events-none" />
+                    <Hash className="w-4 h-4 text-[#8A9BA2] absolute left-3.5 top-3.5 pointer-events-none" />
                     <input
                       type="text"
+                      inputMode="numeric"
                       required
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder={
-                        role === 'teacher'
-                          ? 'Contoh: guru@sekolah.sch.id atau 199501012022032001'
-                          : 'Contoh: afiqahzahira17@gmail.com atau 0092837410'
-                      }
-                      className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                      value={nisInput}
+                      onChange={(e) => setNisInput(e.target.value)}
+                      placeholder="Masukkan NIS Anda (10 digit)"
+                      className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm font-mono tabular-nums rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                     />
                   </div>
                 </div>
 
+                {/* 2. Kata Sandi (Default 0000 saat pertama masuk, editable) */}
                 <div>
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1.5">
-                    Kata Sandi *
-                  </label>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF]">
+                      Kata Sandi *
+                    </label>
+                    <span className="text-[11px] font-medium text-[#7A562C] dark:text-[#F4A950]">
+                      Sandi awal: <strong className="font-mono">0000</strong>
+                    </span>
+                  </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-[#8A9BA2] absolute left-3.5 top-3.5 pointer-events-none" />
                     <input
@@ -436,8 +312,8 @@ export const LoginPage: React.FC = () => {
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Masukkan kata sandi akun"
-                      className="w-full min-h-[44px] pl-10 pr-11 py-2.5 text-xs sm:text-sm rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                      placeholder="Default 0000 (atau sandi baru Anda)"
+                      className="w-full min-h-[44px] pl-10 pr-11 py-2.5 text-xs sm:text-sm font-mono tabular-nums rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                     />
                     <button
                       type="button"
@@ -448,158 +324,98 @@ export const LoginPage: React.FC = () => {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <p className="text-[11px] text-[#6E828A] dark:text-[#9AB5BE] mt-1">
+                    Biarkan <span className="font-mono font-bold">0000</span> saat pertama kali masuk. Kata sandi dapat diubah di menu profil setelah masuk.
+                  </p>
+                </div>
+
+                {/* 3. Kode Kelas langsung saat masuk (Bisa 1, 2, atau lebih kode kelas) */}
+                <div className="p-3.5 rounded-2xl bg-[#FCEADE]/55 dark:bg-[#0E242D] border border-[#F2D5BB] dark:border-[#245060] space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <KeyRound className="w-4 h-4 text-[#E59638]" />
+                      <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
+                        Masukkan Kode Kelas
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLoginClassCodes((prev) => [...prev, ''])}
+                      className="text-[11px] font-extrabold text-[#C87A24] dark:text-[#F4A950] hover:underline flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Kode Kelas</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-[#5C717A] dark:text-[#A9C4CD] leading-snug">
+                    Ketik kode kelas dari guru Anda untuk langsung masuk ke kelas (kosongkan jika sebelumnya sudah tergabung).
+                  </p>
+
+                  <div className="space-y-2">
+                    {loginClassCodes.map((codeVal, idx) => (
+                      <div key={idx} className="relative flex items-center">
+                        <KeyRound className="w-3.5 h-3.5 text-[#8A9BA2] absolute left-3 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={codeVal}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            setLoginClassCodes((prev) =>
+                              prev.map((item, i) => (i === idx ? val : item))
+                            );
+                          }}
+                          placeholder={
+                            loginClassCodes.length === 1
+                              ? 'Kode Kelas dari Guru (cth: IX-A-123)'
+                              : `Kode Kelas ${idx + 1}`
+                          }
+                          className="w-full min-h-[42px] pl-9 pr-8 py-2 text-xs font-mono uppercase tracking-wider rounded-xl border border-[#E2DDD4] dark:border-[#275668] bg-white dark:bg-[#122D37] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                        />
+                        {loginClassCodes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLoginClassCodes((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="absolute right-2.5 text-[#8A9BA2] hover:text-rose-600 cursor-pointer"
+                            title="Hapus kolom kode"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] font-extrabold text-sm shadow-[0_8px_22px_rgba(244,169,80,0.3)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
                 >
-                  <span>Masuk sebagai {role === 'teacher' ? 'Guru' : 'Siswa'}</span>
+                  <span>Masuk ke Ruang Siswa</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
+            ) : (
+              /* Pendaftaran Siswa Baru Hanya dengan NIS (Tanpa Email) */
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
+                      Nomor Induk Siswa (NIS) *
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      value={regNis}
+                      onChange={(e) => setRegNis(e.target.value)}
+                      placeholder="Masukkan NIS Siswa"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                    />
+                  </div>
 
-              {/* Quick Saved Accounts Selector for effortless testing of Guru & Siswa */}
-              <div className="pt-4 border-t border-[#E6E8E3] dark:border-[#1E4452] space-y-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF]">
-                    Akun {role === 'teacher' ? 'Guru' : 'Siswa'} Tersedia ({roleFilteredAccounts.length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleSwitchMode('register')}
-                    className="text-xs font-bold text-[#C87A24] dark:text-[#F4A950] hover:underline cursor-pointer"
-                  >
-                    + Buat Akun {role === 'teacher' ? 'Guru' : 'Siswa'} Baru
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
-                  {roleFilteredAccounts.map((acc) => {
-                    const fallbackAvatar =
-                      acc.role === 'teacher' ? AVATAR_TEACHER_SVG : AVATAR_STUDENT_SVG;
-                    const classCount = allClasses.filter(
-                      (c) =>
-                        (acc.role === 'teacher' && c.teacherId === acc.id) ||
-                        (acc.joinedClassIds || []).includes(c.id)
-                    ).length;
-
-                    return (
-                      <div
-                        key={acc.id}
-                        className="p-3 rounded-2xl bg-white dark:bg-[#132F3A] border border-[#E4E7E5] dark:border-[#214B59] flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <img
-                            src={acc.avatarUrl || fallbackAvatar}
-                            alt={acc.name}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              e.currentTarget.src = fallbackAvatar;
-                            }}
-                            className="w-9 h-9 rounded-full object-cover border border-[#F4A950]/60 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-xs font-extrabold text-[#163E4B] dark:text-white truncate">
-                              {acc.name}
-                            </p>
-                            <p className="text-[11px] text-[#6E828A] dark:text-[#96B2BC] truncate tabular-nums">
-                              {acc.email} · {classCount} Kelas
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLoginIdentifier(acc.email);
-                              setLoginPassword(acc.password || '123');
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-[#5E747D] dark:text-[#B4CED7] hover:bg-[#F7F7F5] dark:hover:bg-[#193C49] cursor-pointer whitespace-nowrap"
-                          >
-                            Isi
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => quickLoginAccount(acc.id)}
-                            className="px-3 py-1.5 rounded-xl text-[11px] font-extrabold bg-[#163E4B] hover:bg-[#1D4E5E] text-white cursor-pointer whitespace-nowrap"
-                          >
-                            Masuk
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* ==================== FORM 2: BUAT AKUN BARU (REGISTER GURU & SISWA + MULTI-KELAS) ==================== */
-            <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                    {role === 'teacher' ? 'Nama Lengkap & Gelar Guru *' : 'Nama Lengkap Siswa *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    placeholder={
-                      role === 'teacher'
-                        ? 'Contoh: Ibu Siti Aminah, S.Pd'
-                        : 'Contoh: Nabila Putri Pratama'
-                    }
-                    className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                    Alamat Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder={role === 'teacher' ? 'guru.baru@sekolah.sch.id' : 'siswa@sekolah.sch.id'}
-                    className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                    Kata Sandi Baru *
-                  </label>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    minLength={3}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    placeholder="Minimal 3 karakter"
-                    className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                    {role === 'teacher' ? 'NIP / ID Pendidik *' : 'NISN Siswa *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={regIdNumber}
-                    onChange={(e) => setRegIdNumber(e.target.value)}
-                    placeholder={role === 'teacher' ? '198804122015032004' : '0094827165'}
-                    className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-                  />
-                </div>
-
-                {role === 'student' ? (
                   <div>
                     <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
                       Nomor Urut Absen *
@@ -613,46 +429,62 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) =>
                         setRegAttendanceNumber(Math.max(1, parseInt(e.target.value) || 1))
                       }
-                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums font-bold rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums font-bold rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                     />
                   </div>
-                ) : (
-                  <div>
+
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                      No. WhatsApp Guru (Opsional)
+                      Nama Lengkap Siswa *
                     </label>
                     <input
-                      type="tel"
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="081234567890"
-                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Masukkan nama lengkap sesuai absen"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                     />
                   </div>
-                )}
 
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF] block mb-1">
-                    Nama Sekolah / Madrasah
-                  </label>
-                  <input
-                    type="text"
-                    value={regSchoolName}
-                    onChange={(e) => setRegSchoolName(e.target.value)}
-                    placeholder="Contoh: MTs Negeri 1 / SMP Negeri 2"
-                    className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-2xl border border-[#DCE3E6] dark:border-[#245060] bg-white dark:bg-[#132F3A] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
-                  />
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label className="text-xs font-bold text-[#163E4B] dark:text-[#DCEBEF]">
+                        Kata Sandi Siswa (Dapat Diedit) *
+                      </label>
+                      <span className="text-[11px] text-[#7A562C] dark:text-[#F4A950]">
+                        Default: <strong className="font-mono">0000</strong>
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-[#8A9BA2] absolute left-3.5 top-3 pointer-events-none" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={3}
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="0000 atau ketik kata sandi pilihan Anda"
+                        className="w-full min-h-[42px] pl-10 pr-11 py-2 text-xs font-mono tabular-nums rounded-2xl border border-[#E2DDD4] dark:border-[#245060] bg-[#FCFBF9] dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-2.5 top-1 min-h-[32px] min-w-[32px] flex items-center justify-center text-[#7A8E96] hover:text-[#163E4B] dark:hover:text-white rounded-lg cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* MULTI-CLASS ONBOARDING SECTION (2+ Classes Support right from Sign-Up!) */}
-              {role === 'student' ? (
-                <div className="p-3.5 rounded-2xl bg-[#FCEADE]/65 dark:bg-[#132F3A] border border-[#F4D3BA] dark:border-[#245060] space-y-2.5">
+                {/* Manual Multi-Class Code Input Only */}
+                <div className="p-3.5 rounded-2xl bg-[#FCEADE]/55 dark:bg-[#0E242D] border border-[#F2D5BB] dark:border-[#245060] space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <Layers className="w-4 h-4 text-[#E59638]" />
                       <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
-                        Gabung Kelas Langsung (Bisa 2 Kelas atau Lebih)
+                        Kode Kelas (Bisa 2 Kelas atau Lebih)
                       </span>
                     </div>
                     <button
@@ -664,10 +496,6 @@ export const LoginPage: React.FC = () => {
                       <span>Tambah Kode</span>
                     </button>
                   </div>
-
-                  <p className="text-[11px] text-[#5C717A] dark:text-[#A9C4CD] leading-snug">
-                    Masukkan 1, 2, atau lebih kode kelas dari guru Anda (opsional, juga dapat ditambahkan nanti di dalam aplikasi).
-                  </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {studentClassCodes.map((codeVal, idx) => (
@@ -683,7 +511,7 @@ export const LoginPage: React.FC = () => {
                             );
                           }}
                           placeholder={`Kode Kelas ${idx + 1}`}
-                          className="w-full pl-8 pr-7 py-2 text-xs font-mono uppercase rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                          className="w-full pl-8 pr-7 py-2 text-xs font-mono uppercase rounded-xl border border-[#E2DDD4] dark:border-[#275668] bg-white dark:bg-[#122D37] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
                         />
                         {studentClassCodes.length > 2 && (
                           <button
@@ -700,50 +528,403 @@ export const LoginPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-
-                  {/* Quick-pick from existing school classes if Guru has already created classes */}
-                  {allClasses.length > 0 && (
-                    <div className="pt-1.5 space-y-1.5">
-                      <span className="text-[10px] font-bold text-[#6E828A] dark:text-[#96B2BC] block">
-                        Kelas tersedia di sekolah (klik untuk memilih 2 kelas atau lebih):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {allClasses.map((cls) => {
-                          const isPicked = studentClassCodes.some(
-                            (c) => c.trim().toUpperCase() === cls.code.toUpperCase()
-                          );
-                          return (
-                            <button
-                              key={cls.id}
-                              type="button"
-                              onClick={() => toggleQuickCodeSelect(cls.code)}
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border flex items-center gap-1 transition-all cursor-pointer ${
-                                isPicked
-                                  ? 'bg-[#163E4B] border-[#163E4B] text-white'
-                                  : 'bg-white dark:bg-[#0E242D] border-[#DCE3E6] dark:border-[#275668] text-[#163E4B] dark:text-[#DCEBEF]'
-                              }`}
-                            >
-                              {isPicked ? (
-                                <Check className="w-3 h-3 text-[#F4A950]" />
-                              ) : (
-                                <Plus className="w-3 h-3 text-[#E59638]" />
-                              )}
-                              <span>{cls.name}</span>
-                              <span className="font-mono text-[10px] opacity-75">({cls.code})</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <div className="p-3.5 rounded-2xl bg-[#FCEADE]/65 dark:bg-[#132F3A] border border-[#F4D3BA] dark:border-[#245060] space-y-2.5">
+
+                <button
+                  type="submit"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-[#F4A950] hover:bg-[#E59638] text-[#163E4B] font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span>Daftar dengan NIS & Masuk</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Quiet Footer */}
+      <footer className="relative z-10 w-full max-w-[500px] mx-auto mt-6 flex items-center justify-between gap-2 text-[11px] text-[#7A8E96] dark:text-[#7E9EA9]">
+        <span>ClassyWork · Portal Khusus Siswa</span>
+        <span>Senin – Sabtu · WITA</span>
+      </footer>
+    </div>
+  );
+};
+
+/* ============================================================================
+ * 2. PORTAL LOGIN KHUSUS GURU (/?portal=guru)
+ *    Desain: Executive Deep Petrol Educator Console (#ECF2F4 cool slate canvas,
+ *    2-column console card dengan #0F2E3A educator sidebar & #163E4B executive CTA)
+ * ============================================================================ */
+const TeacherLoginPortal: React.FC = () => {
+  const { loginWithCredentials, registerAccount, witaTimeInfo, isDarkMode, setIsDarkMode } =
+    useApp();
+
+  const [mode, setMode] = useState<'login' | 'register'>(getInitialModeFromUrl);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Login form state
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Register form state
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regNip, setRegNip] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regSchoolName, setRegSchoolName] = useState('');
+  const [teacherInitialClasses, setTeacherInitialClasses] = useState<
+    { name: string; gradeLevel: string }[]
+  >([
+    { name: '', gradeLevel: 'Kelas 9' },
+    { name: '', gradeLevel: 'Kelas 9' },
+  ]);
+
+  const handleCopyTeacherLink = () => {
+    const url = `${window.location.origin}/?portal=guru`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    const res = loginWithCredentials(identifier, password, 'teacher');
+    if (!res.success) {
+      setErrorMessage(res.message);
+    }
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    const validTeacherClasses = teacherInitialClasses.filter((c) => c.name.trim().length > 0);
+    const res = registerAccount({
+      name: regName,
+      email: regEmail,
+      password: regPassword,
+      role: 'teacher',
+      identifierNumber: regNip,
+      schoolName: regSchoolName || 'MTs / SMP',
+      phone: regPhone,
+      initialClassesToCreate: validTeacherClasses,
+    });
+    if (!res.success) {
+      setErrorMessage(res.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-[#ECF2F4] dark:bg-[#07151B] text-[#123541] dark:text-[#F2F6F7] flex flex-col justify-between px-4 py-6 sm:px-6 sm:py-10 transition-colors">
+      {/* Top Educator Utility Bar */}
+      <header className="w-full max-w-[880px] mx-auto flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-[#0F2E3A] text-[#F4A950] flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <span className="text-base sm:text-lg font-extrabold tracking-tight text-[#0F2E3A] dark:text-white whitespace-nowrap">
+            ClassyWork{' '}
+            <span className="font-semibold text-[#4B6B76] dark:text-[#96B8C4]">Pendidik</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleCopyTeacherLink}
+            className="min-h-[40px] px-3 py-1.5 rounded-xl border border-[#CFDCE1] dark:border-[#1E4452] bg-white dark:bg-[#0F2731] text-xs font-semibold text-[#0F2E3A] dark:text-[#E8F1F4] flex items-center gap-1.5 hover:border-[#163E4B] dark:hover:border-[#F4A950] transition-colors cursor-pointer whitespace-nowrap"
+            title="Salin tautan khusus halaman login guru"
+          >
+            {copiedLink ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Tersalin</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="w-3.5 h-3.5 text-[#163E4B] dark:text-[#F4A950]" />
+                <span>Link Guru</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDarkMode((prev) => !prev)}
+            className="min-h-[40px] min-w-[40px] px-2.5 py-1.5 rounded-xl border border-[#CFDCE1] dark:border-[#1E4452] bg-white dark:bg-[#0F2731] text-xs font-semibold text-[#0F2E3A] dark:text-[#E8F1F4] flex items-center justify-center hover:border-[#163E4B] dark:hover:border-[#F4A950] transition-colors cursor-pointer"
+            title="Ubah Tema Tampilan"
+          >
+            {isDarkMode ? (
+              <Sun className="w-4 h-4 text-[#F4A950]" />
+            ) : (
+              <Moon className="w-4 h-4 text-[#0F2E3A]" />
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* 2-Column Executive Educator Console Card */}
+      <main className="w-full max-w-[880px] mx-auto my-auto">
+        <div className="rounded-[28px] bg-white dark:bg-[#0F2731] border border-[#CFDCE1] dark:border-[#1E4452] shadow-[0_18px_48px_rgba(15,46,58,0.10)] grid grid-cols-1 lg:grid-cols-12 items-stretch overflow-hidden">
+          {/* Left Identity Panel */}
+          <div className="lg:col-span-5 bg-[#0F2E3A] dark:bg-[#091D25] text-white p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden">
+            <svg
+              className="pointer-events-none absolute right-0 bottom-0 w-56 h-56 opacity-20"
+              viewBox="0 0 220 220"
+              fill="none"
+              aria-hidden="true"
+            >
+              <rect
+                x="40"
+                y="40"
+                width="160"
+                height="160"
+                rx="24"
+                stroke="#96B8C4"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="76"
+                y="76"
+                width="124"
+                height="124"
+                rx="18"
+                stroke="#F4A950"
+                strokeWidth="1.5"
+                strokeDasharray="5 6"
+              />
+            </svg>
+
+            <div className="relative z-10 space-y-3">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#F4A950]">
+                <BookOpen className="w-4 h-4" />
+                <span>Portal Resmi Guru & Wali Kelas</span>
+              </div>
+
+              <h1 className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight text-white leading-snug [text-wrap:balance]">
+                Ruang Kerja Akademik & Manajemen Multi-Kelas.
+              </h1>
+
+              <p className="text-xs sm:text-sm text-[#B8D0D8] leading-relaxed">
+                Kelola jadwal pelajaran Senin–Sabtu, buat dua kelas atau lebih dalam satu akun pendidik, serta periksa dan beri nilai pengumpulan tugas siswa berdasarkan urutan absen.
+              </p>
+            </div>
+
+            <div className="relative z-10 mt-6 pt-4 border-t border-white/12 flex items-center justify-between gap-2 text-xs text-[#B8D0D8]">
+              <span className="flex items-center gap-1.5 font-mono tabular-nums text-white font-semibold">
+                <Clock className="w-3.5 h-3.5 text-[#F4A950]" />
+                {witaTimeInfo.formattedTime} WITA
+              </span>
+              <span>{witaTimeInfo.dayName}</span>
+            </div>
+          </div>
+
+          {/* Right Educator Auth Form */}
+          <div className="lg:col-span-7 p-6 sm:p-8 space-y-5 flex flex-col justify-center">
+            {/* Segmented Mode Control */}
+            <div className="grid grid-cols-2 p-1 rounded-2xl bg-[#EEF3F5] dark:bg-[#0A1C24] border border-[#DAE4E8] dark:border-[#1E4452]">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setErrorMessage(null);
+                }}
+                className={`min-h-[42px] px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  mode === 'login'
+                    ? 'bg-[#0F2E3A] text-white'
+                    : 'text-[#55707A] dark:text-[#96B8C4] hover:text-[#0F2E3A] dark:hover:text-white'
+                }`}
+              >
+                <LogIn className="w-4 h-4 text-[#F4A950]" />
+                <span>Masuk Portal Guru</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('register');
+                  setErrorMessage(null);
+                }}
+                className={`min-h-[42px] px-3 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  mode === 'register'
+                    ? 'bg-[#0F2E3A] text-white'
+                    : 'text-[#55707A] dark:text-[#96B8C4] hover:text-[#0F2E3A] dark:hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-4 h-4 text-[#F4A950]" />
+                <span>Registrasi Guru</span>
+              </button>
+            </div>
+
+            <div>
+              <h2 className="text-lg sm:text-xl font-extrabold text-[#0F2E3A] dark:text-white tracking-tight">
+                {mode === 'login' ? 'Autentikasi Akun Pendidik' : 'Buat Akun Guru Pengampu'}
+              </h2>
+              <p className="text-xs text-[#5E7882] dark:text-[#96B8C4] mt-0.5">
+                {mode === 'login'
+                  ? 'Gunakan email pendidik atau NIP Anda untuk membuka panel manajemen kelas.'
+                  : 'Daftarkan akun pendidik baru dan langsung siapkan ruang kelas yang Anda ampu.'}
+              </p>
+            </div>
+
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{errorMessage}</span>
+              </div>
+            )}
+
+            {mode === 'login' ? (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1.5">
+                    Email Resmi atau NIP Guru *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-[#7D959E] absolute left-3.5 top-3.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="Contoh: nama.guru@sekolah.sch.id atau NIP"
+                      className="w-full min-h-[44px] pl-10 pr-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B] dark:focus:ring-[#F4A950]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1.5">
+                    Kata Sandi *
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#7D959E] absolute left-3.5 top-3.5 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Masukkan kata sandi akun pendidik"
+                      className="w-full min-h-[44px] pl-10 pr-11 py-2.5 text-xs sm:text-sm rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B] dark:focus:ring-[#F4A950]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-2.5 top-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center text-[#6E8790] hover:text-[#0F2E3A] dark:hover:text-white rounded-lg cursor-pointer"
+                      title={showPassword ? 'Sembunyikan Sandi' : 'Tampilkan Sandi'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-xl bg-[#0F2E3A] hover:bg-[#194556] text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span>Masuk ke Portal Guru</span>
+                  <ArrowRight className="w-4 h-4 text-[#F4A950]" />
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      Nama Lengkap & Gelar Pendidik *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="Contoh: Ibu Siti Aminah, S.Pd."
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      Email Pendidik *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      placeholder="guru@sekolah.sch.id"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      Kata Sandi Baru *
+                    </label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={3}
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="Minimal 3 karakter"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      NIP / ID Pendidik *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={regNip}
+                      onChange={(e) => setRegNip(e.target.value)}
+                      placeholder="Nomor Induk Pendidik"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      No. WhatsApp (Opsional)
+                    </label>
+                    <input
+                      type="tel"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      placeholder="0812xxxxxxxx"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs font-mono tabular-nums rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-[#0F2E3A] dark:text-[#DCEBEF] block mb-1">
+                      Instansi Sekolah / Madrasah
+                    </label>
+                    <input
+                      type="text"
+                      value={regSchoolName}
+                      onChange={(e) => setRegSchoolName(e.target.value)}
+                      placeholder="Contoh: MTs Negeri / SMP Negeri"
+                      className="w-full min-h-[42px] px-3.5 py-2 text-xs rounded-xl border border-[#CFDCE1] dark:border-[#245060] bg-[#F8FAFB] dark:bg-[#0B1E26] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
+                    />
+                  </div>
+                </div>
+
+                {/* Create Initial Multi-Classes for Teacher */}
+                <div className="p-3.5 rounded-xl bg-[#F2F6F8] dark:bg-[#0B1E26] border border-[#D4E1E6] dark:border-[#245060] space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-[#E59638]" />
-                      <span className="text-xs font-extrabold text-[#163E4B] dark:text-white">
-                        Buat Kelas Awal (Bisa 2 Kelas atau Lebih)
+                      <Layers className="w-4 h-4 text-[#0F2E3A] dark:text-[#F4A950]" />
+                      <span className="text-xs font-extrabold text-[#0F2E3A] dark:text-white">
+                        Buat Kelas Ampuan (Bisa 2 Kelas atau Lebih)
                       </span>
                     </div>
                     <button
@@ -751,18 +932,18 @@ export const LoginPage: React.FC = () => {
                       onClick={() =>
                         setTeacherInitialClasses((prev) => [
                           ...prev,
-                          { name: '', gradeLevel: 'Kelas 7' },
+                          { name: '', gradeLevel: 'Kelas 9' },
                         ])
                       }
-                      className="text-[11px] font-extrabold text-[#C87A24] dark:text-[#F4A950] hover:underline flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
+                      className="text-[11px] font-extrabold text-[#0F2E3A] dark:text-[#F4A950] hover:underline flex items-center gap-0.5 cursor-pointer whitespace-nowrap"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Tambah Kelas</span>
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-[#5C717A] dark:text-[#A9C4CD] leading-snug">
-                    Opsional: langsung buat 2 kelas atau lebih yang Anda ampu (misal VII-A & VIII-B), atau kosongkan untuk membuatnya nanti.
+                  <p className="text-[11px] text-[#55707A] dark:text-[#96B8C4] leading-snug">
+                    Opsional: buat 2 kelas atau lebih sekaligus sekarang, atau kosongkan untuk membuatnya di dalam aplikasi.
                   </p>
 
                   <div className="space-y-2">
@@ -778,9 +959,9 @@ export const LoginPage: React.FC = () => {
                             );
                           }}
                           placeholder={`Nama Kelas ${idx + 1} (cth: ${
-                            idx === 0 ? 'VII-A Matematika' : 'VIII-B IPA'
+                            idx === 0 ? 'IX A' : 'IX B'
                           })`}
-                          className="flex-1 px-3 py-2 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                          className="flex-1 px-3 py-2 text-xs rounded-lg border border-[#CFDCE1] dark:border-[#275668] bg-white dark:bg-[#0F2731] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
                         />
                         <select
                           value={clsItem.gradeLevel}
@@ -792,7 +973,7 @@ export const LoginPage: React.FC = () => {
                               )
                             );
                           }}
-                          className="px-2.5 py-2 text-xs rounded-xl border border-[#DCE3E6] dark:border-[#275668] bg-white dark:bg-[#0E242D] text-[#163E4B] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#F4A950]"
+                          className="px-2.5 py-2 text-xs rounded-lg border border-[#CFDCE1] dark:border-[#275668] bg-white dark:bg-[#0F2731] text-[#0F2E3A] dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#163E4B]"
                         >
                           <option value="Kelas 7">Kelas 7</option>
                           <option value="Kelas 8">Kelas 8</option>
@@ -807,7 +988,7 @@ export const LoginPage: React.FC = () => {
                             onClick={() =>
                               setTeacherInitialClasses((prev) => prev.filter((_, i) => i !== idx))
                             }
-                            className="p-1.5 text-[#8A9BA2] hover:text-rose-600 cursor-pointer"
+                            className="p-1.5 text-[#7D959E] hover:text-rose-600 cursor-pointer"
                             title="Hapus baris"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -817,25 +998,47 @@ export const LoginPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-[#163E4B] hover:bg-[#1D4E5E] text-white font-extrabold text-sm shadow-[0_10px_24px_rgba(22,62,75,0.2)] flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <span>Daftar & Masuk sebagai {role === 'teacher' ? 'Guru' : 'Siswa'}</span>
-                <ArrowRight className="w-4 h-4 text-[#F4A950]" />
-              </button>
-            </form>
-          )}
+                <button
+                  type="submit"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-xl bg-[#0F2E3A] hover:bg-[#194556] text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span>Daftar & Buka Portal Guru</span>
+                  <ArrowRight className="w-4 h-4 text-[#F4A950]" />
+                </button>
+              </form>
+            )}
+          </div>
         </div>
+      </main>
 
-        {/* Bottom Quiet Footer */}
-        <div className="mt-8 pt-4 border-t border-[#EAEBE6] dark:border-[#1B3F4C] flex items-center justify-between text-[11px] text-[#7A8E96] dark:text-[#88A5AF]">
-          <span>ClassyWork · Sistem Informasi Kelas</span>
-          <span>Mendukung Multi-Akun & Multi-Kelas</span>
-        </div>
-      </section>
+      {/* Quiet Footer */}
+      <footer className="w-full max-w-[880px] mx-auto mt-6 flex items-center justify-between gap-2 text-[11px] text-[#607B85] dark:text-[#7E9EA9]">
+        <span>ClassyWork · Portal Khusus Guru & Wali Kelas</span>
+        <span>Senin – Sabtu · WITA</span>
+      </footer>
     </div>
   );
+};
+
+export const LoginPage: React.FC = () => {
+  const [portalRole, setPortalRole] = useState<UserRole>(getPortalRoleFromUrl);
+
+  useEffect(() => {
+    const syncRoleFromUrl = () => {
+      setPortalRole(getPortalRoleFromUrl());
+    };
+    window.addEventListener('popstate', syncRoleFromUrl);
+    window.addEventListener('hashchange', syncRoleFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncRoleFromUrl);
+      window.removeEventListener('hashchange', syncRoleFromUrl);
+    };
+  }, []);
+
+  if (portalRole === 'teacher') {
+    return <TeacherLoginPortal />;
+  }
+
+  return <StudentLoginPortal />;
 };
